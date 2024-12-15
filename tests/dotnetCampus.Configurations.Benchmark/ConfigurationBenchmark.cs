@@ -1,10 +1,11 @@
-﻿using BenchmarkDotNet.Attributes;
-using dotnetCampus.Configurations.Core;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using BenchmarkDotNet.Attributes;
+using dotnetCampus.Configurations.Core;
+using dotnetCampus.Configurations.Serializers;
 
 namespace dotnetCampus.Configurations.Benchmark
 {
@@ -14,7 +15,7 @@ namespace dotnetCampus.Configurations.Benchmark
         public void ReadDirectly()
         {
             const string dcc = "configs.01.dcc";
-            FileConfigurationRepo repo = ConfigurationFactory.FromFile(dcc);
+            FileConfigurationRepo repo = ConfigurationFactory.FromFile(dcc, new CoinConfigurationSerializer());
             var configs = repo.CreateAppConfigurator().Of<FakeConfiguration>();
             _ = configs.Key;
         }
@@ -23,7 +24,7 @@ namespace dotnetCampus.Configurations.Benchmark
         public async Task ReadWithFileChangeChecking()
         {
             const string dcc = "configs.02.dcc";
-            FileConfigurationRepo repo = ConfigurationFactory.FromFile(dcc);
+            FileConfigurationRepo repo = ConfigurationFactory.FromFile(dcc, new CoinConfigurationSerializer());
             var configs = repo.CreateAppConfigurator().Of<FakeConfiguration>();
             await repo.ReloadExternalChangesAsync().ConfigureAwait(false);
             _ = configs.Key;
@@ -31,9 +32,8 @@ namespace dotnetCampus.Configurations.Benchmark
 
         private class FakeConfiguration : Configuration
         {
-            public FakeConfiguration() : base("")
-            {
-            }
+            public FakeConfiguration()
+                : base("") { }
 
             public string Key
             {

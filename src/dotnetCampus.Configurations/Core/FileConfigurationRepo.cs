@@ -1,11 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-
 using dotnetCampus.Configurations.Concurrent;
 using dotnetCampus.Configurations.Utils;
 using dotnetCampus.IO;
@@ -18,6 +17,11 @@ namespace dotnetCampus.Configurations.Core
     /// </summary>
     public class FileConfigurationRepo : AsynchronousConfigurationRepo
     {
+        /// <summary>
+        /// 获取执行配置序列化的处理器实例
+        /// </summary>
+        private readonly IConfigurationSerializer _serializer;
+
         /// <summary>
         /// 获取此配置所用的文件。
         /// </summary>
@@ -64,31 +68,36 @@ namespace dotnetCampus.Configurations.Core
         /// <param name="fileName">配置文件的文件路径。</param>
         [Obsolete("请改用线程安全的 ConfigurationFactory 来创建实例。")]
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public FileConfigurationRepo(string fileName) : this(fileName, RepoSyncingBehavior.Sync) { }
+        public FileConfigurationRepo(string fileName, IConfigurationSerializer serializer)
+            : this(fileName, serializer, RepoSyncingBehavior.Sync) { }
 
         /// <summary>
         /// 初始化使用 <paramref name="fileName"/> 作为配置文件的 <see cref="FileConfigurationRepo"/> 的新实例。
         /// </summary>
         /// <param name="fileName">配置文件的文件路径。</param>
         /// <param name="syncingBehavior">指定应如何读取数据。是实时监听文件变更，还是只读一次，后续不再监听变更。后者性能更好。</param>
-        internal FileConfigurationRepo(string fileName, RepoSyncingBehavior syncingBehavior)
+        internal FileConfigurationRepo(string fileName, IConfigurationSerializer serializer, RepoSyncingBehavior syncingBehavior)
         {
             if (fileName == null)
             {
                 throw new ArgumentNullException(nameof(fileName));
             }
 
+            _serializer = serializer;
+
             var fullPath = Path.GetFullPath(fileName);
             _file = new FileInfo(fullPath);
             _saveLoop = new PartialAwaitableRetry(LoopSyncTask);
-            _keyValueSynchronizer = new FileDictionarySynchronizer<string, string>(_file,
+            _keyValueSynchronizer = new FileDictionarySynchronizer<string, string>(
+                _file,
 #pragma warning disable CS8620 // 由于引用类型的可为 null 性差异，实参不能用于形参。
-                x => CoinConfigurationSerializer.Serialize(x),
+                x => _serializer.Serialize(x),
 #pragma warning restore CS8620 // 由于引用类型的可为 null 性差异，实参不能用于形参。
-                x => CoinConfigurationSerializer.Deserialize(x),
+                x => _serializer.Deserialize(x),
                 // 因为 COIN 格式的序列化器默认会写“文件头”，导致即使是构造函数也会和原始文件内容不同，于是会写入文件，导致写入次数比预期多一些。
                 // 所以，比较差异时使用 KeyValueEquals 而不是 WholeTextEquals，这可以在目前对注释不敏感的时候提升一些性能。
-                FileEqualsComparison.KeyValueEquals);
+                FileEqualsComparison.KeyValueEquals
+            );
 
             // 监视文件改变。
             if (syncingBehavior == RepoSyncingBehavior.Sync)
@@ -301,11 +310,12 @@ namespace dotnetCampus.Configurations.Core
         /// 省去任何中间等待环节，立即开始同步（但为了安全，无法省去进程安全区的等待）。
         /// </summary>
         /// <returns>可等待对象。</returns>
-        private Task FastSynchronizeAsync() => Task.Run(() =>
-        {
-            CT.Log($"立即同步...", _file.Name);
-            _keyValueSynchronizer.Synchronize();
-        });
+        private Task FastSynchronizeAsync() =>
+            Task.Run(() =>
+            {
+                CT.Log($"立即同步...", _file.Name);
+                _keyValueSynchronizer.Synchronize();
+            });
 
         /// <summary>
         /// 请求将文件与内存模型进行同步。

@@ -1,4 +1,5 @@
-﻿using dotnetCampus.Configurations.Tests.Utils;
+using dotnetCampus.Configurations.Serializers;
+using dotnetCampus.Configurations.Tests.Utils;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MSTest.Extensions.Contracts;
 
@@ -16,7 +17,7 @@ namespace dotnetCampus.Configurations.Tests
                 var coin = TestUtil.GetTempFile("configs.sim.coin");
 
                 // Act
-                var configs = DefaultConfiguration.FromFile(coin.FullName);
+                var configs = DefaultConfiguration.FromFile(coin.FullName, new CoinConfigurationSerializer());
 
                 // Assert
                 var value = configs["Foo"];

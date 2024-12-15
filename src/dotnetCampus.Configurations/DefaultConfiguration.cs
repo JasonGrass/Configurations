@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.IO;
 using dotnetCampus.Configurations.Core;
@@ -14,9 +14,8 @@ namespace dotnetCampus.Configurations
         /// <summary>
         /// 创建用于给 <see cref="IAppConfigurator"/> 管理配置的默认配置。
         /// </summary>
-        public DefaultConfiguration() : base(null)
-        {
-        }
+        public DefaultConfiguration()
+            : base(null) { }
 
         /// <summary>
         /// 获取用标识符描述的配置项的字符串值。
@@ -35,8 +34,10 @@ namespace dotnetCampus.Configurations
         /// <summary>
         /// 管理不同文件的 <see cref="DefaultConfiguration"/> 的实例。
         /// </summary>
-        private static readonly ConcurrentDictionary<string, WeakReference<DefaultConfiguration>> Configurations
-            = new ConcurrentDictionary<string, WeakReference<DefaultConfiguration>>(StringComparer.OrdinalIgnoreCase);
+        private static readonly ConcurrentDictionary<string, WeakReference<DefaultConfiguration>> Configurations = new ConcurrentDictionary<
+            string,
+            WeakReference<DefaultConfiguration>
+        >(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// 从文件创建默认的配置管理器，你将可以使用类似字典的方式管理线程和进程安全的应用程序配置。
@@ -45,7 +46,7 @@ namespace dotnetCampus.Configurations
         /// </summary>
         /// <param name="fileName">来自于本地文件系统的文件名/路径。文件或文件所在的文件夹不需要提前存在。</param>
         /// <returns>一个默认的应用程序配置。</returns>
-        public static DefaultConfiguration FromFile(string fileName)
+        public static DefaultConfiguration FromFile(string fileName, IConfigurationSerializer serializer)
         {
             if (fileName == null)
             {
@@ -58,7 +59,7 @@ namespace dotnetCampus.Configurations
             }
 
             var path = Path.GetFullPath(fileName);
-            var reference = Configurations.GetOrAdd(path, CreateConfigurationReference);
+            var reference = Configurations.GetOrAdd(path, CreateConfigurationReference(path, serializer));
 
             // 以下两个 if 一个 lock 是类似于单例模式的创建方式，既保证性能又保证只创建一次。
             if (!reference.TryGetTarget(out var config))
@@ -67,7 +68,7 @@ namespace dotnetCampus.Configurations
                 {
                     if (!reference.TryGetTarget(out config))
                     {
-                        config = CreateConfiguration(path);
+                        config = CreateConfiguration(path, serializer);
                         reference.SetTarget(config);
                     }
                 }
@@ -82,9 +83,8 @@ namespace dotnetCampus.Configurations
         /// </summary>
         /// <param name="path">已经过验证的完整文件路径。</param>
         /// <returns><see cref="DefaultConfiguration"/> 的弱引用实例。</returns>
-        private static WeakReference<DefaultConfiguration> CreateConfigurationReference(string path)
-            => new WeakReference<DefaultConfiguration>(
-                CreateConfiguration(path));
+        private static WeakReference<DefaultConfiguration> CreateConfigurationReference(string path, IConfigurationSerializer serializer) =>
+            new WeakReference<DefaultConfiguration>(CreateConfiguration(path, serializer));
 
         /// <summary>
         /// 创建 <see cref="DefaultConfiguration"/> 的新实例。
@@ -92,7 +92,7 @@ namespace dotnetCampus.Configurations
         /// </summary>
         /// <param name="path">已经过验证的完整文件路径。</param>
         /// <returns><see cref="DefaultConfiguration"/> 的新实例。</returns>
-        private static DefaultConfiguration CreateConfiguration(string path)
-            => ConfigurationFactory.FromFile(path).CreateAppConfigurator().Of<DefaultConfiguration>();
+        private static DefaultConfiguration CreateConfiguration(string path, IConfigurationSerializer serializer) =>
+            ConfigurationFactory.FromFile(path, serializer).CreateAppConfigurator().Of<DefaultConfiguration>();
     }
 }

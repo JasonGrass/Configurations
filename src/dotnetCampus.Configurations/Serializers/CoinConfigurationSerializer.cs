@@ -3,13 +3,14 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using dotnetCampus.Configurations.Core;
 
-namespace dotnetCampus.Configurations.Core
+namespace dotnetCampus.Configurations.Serializers
 {
     /// <summary>
     /// 配置文件 Coin 序列化
     /// </summary>
-    public static class CoinConfigurationSerializer
+    public class CoinConfigurationSerializer : IConfigurationSerializer
     {
         /// <summary>
         /// 存储的转义
@@ -47,9 +48,10 @@ namespace dotnetCampus.Configurations.Core
         /// </summary>
         /// <param name="keyValue">要序列化的键值对字典。</param>
         /// <returns>序列化后的文本字符串。</returns>
-        public static string Serialize(IReadOnlyDictionary<string, string?> keyValue)
+        public string Serialize(IReadOnlyDictionary<string, string?> keyValue)
         {
-            if (ReferenceEquals(keyValue, null)) throw new ArgumentNullException(nameof(keyValue));
+            if (ReferenceEquals(keyValue, null))
+                throw new ArgumentNullException(nameof(keyValue));
             var keyValuePairList = keyValue.ToArray().OrderBy(p => p.Key);
 
             return Serialize(keyValuePairList);
@@ -62,13 +64,16 @@ namespace dotnetCampus.Configurations.Core
         /// <returns>序列化后的文本字符串。</returns>
         public static string Serialize(Dictionary<string, string?> keyValue)
         {
-            if (ReferenceEquals(keyValue, null)) throw new ArgumentNullException(nameof(keyValue));
+            if (ReferenceEquals(keyValue, null))
+                throw new ArgumentNullException(nameof(keyValue));
             var keyValuePairList = keyValue.ToArray().OrderBy(p => p.Key);
 
             return Serialize(keyValuePairList);
         }
 
-        private static string Serialize(IOrderedEnumerable<KeyValuePair<string, string?>> keyValuePairList)
+        private static string Serialize(
+            IOrderedEnumerable<KeyValuePair<string, string?>> keyValuePairList
+        )
         {
             var str = new StringBuilder();
             str.Append("> 配置文件\n");
@@ -96,9 +101,10 @@ namespace dotnetCampus.Configurations.Core
         /// </summary>
         /// <param name="str"></param>
         /// <returns></returns>
-        public static Dictionary<string, string> Deserialize(string str)
+        public Dictionary<string, string> Deserialize(string str)
         {
-            if (ReferenceEquals(str, null)) throw new ArgumentNullException(nameof(str));
+            if (ReferenceEquals(str, null))
+                throw new ArgumentNullException(nameof(str));
             var keyValuePairList = str.Split('\n');
             var keyValue = new Dictionary<string, string>(StringComparer.Ordinal);
             string? key = null;
@@ -119,7 +125,7 @@ namespace dotnetCampus.Configurations.Core
                 if (key == null)
                 {
                     key = unescapedString;
-                    
+
                     // 文件存在多个地方都记录相同的值
                     // 如果有多个地方记录相同的值，使用最后的值替换前面文件
                     if (keyValue.ContainsKey(key))

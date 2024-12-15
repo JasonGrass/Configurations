@@ -1,8 +1,3 @@
-﻿using dotnetCampus.Configurations.Core;
-using dotnetCampus.Configurations.Tests.Fakes;
-using dotnetCampus.Configurations.Tests.Utils;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using MSTest.Extensions.Contracts;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -10,6 +5,12 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using dotnetCampus.Configurations.Core;
+using dotnetCampus.Configurations.Serializers;
+using dotnetCampus.Configurations.Tests.Fakes;
+using dotnetCampus.Configurations.Tests.Utils;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using MSTest.Extensions.Contracts;
 
 namespace dotnetCampus.Configurations.Tests
 {
@@ -26,8 +27,7 @@ namespace dotnetCampus.Configurations.Tests
                 var repo = CreateIndependentRepo(coin);
 
                 // Act && Assert
-                await Assert.ThrowsExceptionAsync<ArgumentNullException>(
-                    () => repo.WriteAsync(null!, "123")).ConfigureAwait(false);
+                await Assert.ThrowsExceptionAsync<ArgumentNullException>(() => repo.WriteAsync(null!, "123")).ConfigureAwait(false);
                 _ = repo.WriteAsync("", "123");
             });
 
@@ -142,9 +142,12 @@ namespace dotnetCampus.Configurations.Tests
 
                 // Act
 #pragma warning disable CS4014 // 由于此调用不会等待，因此在调用完成前将继续执行当前方法
-                repo.WriteAsync("Foo.MultilineValue", @"1
+                repo.WriteAsync(
+                    "Foo.MultilineValue",
+                    @"1
 2
-3");
+3"
+                );
 #pragma warning restore CS4014 // 由于此调用不会等待，因此在调用完成前将继续执行当前方法
                 await repo.SaveAsync().ConfigureAwait(false);
 
@@ -272,10 +275,13 @@ namespace dotnetCampus.Configurations.Tests
                 var fake = configs.Of<FakeConfiguration>();
                 var oldValue = fake.Key;
                 Assert.AreEqual("Value", oldValue);
-                File.WriteAllText(coin.FullName, @">
+                File.WriteAllText(
+                    coin.FullName,
+                    @">
 Key
 NewValue
->");
+>"
+                );
                 await configs.ReloadExternalChangesAsync().ConfigureAwait(false);
                 var newValue = fake.Key;
                 Assert.AreEqual("NewValue", newValue);
@@ -288,10 +294,13 @@ NewValue
                 var fake = configs.Of<FakeConfiguration>();
                 var oldValue = fake.Key;
                 Assert.AreEqual("", oldValue);
-                File.WriteAllText(coin.FullName, @">
+                File.WriteAllText(
+                    coin.FullName,
+                    @">
 Key
 NewValue
->");
+>"
+                );
                 await configs.ReloadExternalChangesAsync().ConfigureAwait(false);
                 var newValue = fake.Key;
                 Assert.AreEqual("NewValue", newValue);
@@ -365,9 +374,9 @@ NewValue
                 await repo.ReloadExternalChangesAsync().ConfigureAwait(false);
 
                 Assert.IsTrue(
-                    string.Equals(fake.Key, "A", StringComparison.Ordinal)
-                    || string.Equals(fake.Key, "B", StringComparison.Ordinal),
-                    $"实际值：{fake.Key}。");
+                    string.Equals(fake.Key, "A", StringComparison.Ordinal) || string.Equals(fake.Key, "B", StringComparison.Ordinal),
+                    $"实际值：{fake.Key}。"
+                );
 
                 // 因为文件读写已加锁，所以理论上不应存在读写失败。
                 try
@@ -465,10 +474,13 @@ NewValue
                 var fake = configs.Of<FakeConfiguration>();
                 var oldValue = fake.Key;
                 Assert.AreEqual("Value", oldValue);
-                File.WriteAllText(coin.FullName, @">
+                File.WriteAllText(
+                    coin.FullName,
+                    @">
 Key
 NewValue
->");
+>"
+                );
                 await Task.Delay(500).ConfigureAwait(false);
                 var newValue = fake.Key;
                 Assert.AreEqual("Value", newValue);
@@ -481,10 +493,13 @@ NewValue
                 var fake = configs.Of<FakeConfiguration>();
                 var oldValue = fake.Key;
                 Assert.AreEqual("", oldValue);
-                File.WriteAllText(coin.FullName, @">
+                File.WriteAllText(
+                    coin.FullName,
+                    @">
 Key
 NewValue
->");
+>"
+                );
                 await Task.Delay(500).ConfigureAwait(false);
                 var newValue = fake.Key;
                 Assert.AreEqual("", newValue);
@@ -533,7 +548,7 @@ NewValue
         /// <param name="syncingBehavior">指定应如何读取数据。是实时监听文件变更，还是只读一次，后续不再监听变更。后者性能更好。</param>
         /// <returns>用于读写配置的 <see cref="FileConfigurationRepo"/> 的新实例。</returns>
         private static FileConfigurationRepo CreateIndependentRepo(FileInfo file, RepoSyncingBehavior syncingBehavior = RepoSyncingBehavior.Sync) =>
-            new(file.FullName, syncingBehavior);
+            new(file.FullName, new CoinConfigurationSerializer(), syncingBehavior);
 
         private static string FormatSyncingCount(params FileConfigurationRepo[] repos)
         {

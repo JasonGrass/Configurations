@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -22,8 +22,10 @@ namespace dotnetCampus.Configurations.Core
         /// <para>此方法是线程安全的。</para>
         /// </summary>
         /// <param name="fileName">来自于本地文件系统的文件名/路径。文件或文件所在的文件夹不需要提前存在。</param>
+        /// <param name="serializer">指定配置的序列化器，不同的配置文件，对应不同的序列化操作</param>
         /// <returns>一个用于管理指定文件的配置仓库。</returns>
-        public static FileConfigurationRepo FromFile(string fileName) => FromFile(fileName, RepoSyncingBehavior.Sync);
+        public static FileConfigurationRepo FromFile(string fileName, IConfigurationSerializer serializer) =>
+            FromFile(fileName, serializer, RepoSyncingBehavior.Sync);
 
         /// <summary>
         /// 从文件创建默认的配置管理仓库，你将可以使用类似字典的方式管理线程和进程安全的应用程序配置。
@@ -31,9 +33,10 @@ namespace dotnetCampus.Configurations.Core
         /// <para>此方法是线程安全的。</para>
         /// </summary>
         /// <param name="fileName">来自于本地文件系统的文件名/路径。文件或文件所在的文件夹不需要提前存在。</param>
+        /// <param name="serializer">指定配置的序列化器，不同的配置文件，对应不同的序列化操作</param>
         /// <param name="syncingBehavior">指定应如何读取数据。是实时监听文件变更，还是只读一次，后续不再监听变更。后者性能更好。</param>
         /// <returns>一个用于管理指定文件的配置仓库。</returns>
-        public static FileConfigurationRepo FromFile(string fileName, RepoSyncingBehavior syncingBehavior)
+        public static FileConfigurationRepo FromFile(string fileName, IConfigurationSerializer serializer, RepoSyncingBehavior syncingBehavior)
         {
             if (fileName == null)
             {
@@ -46,7 +49,7 @@ namespace dotnetCampus.Configurations.Core
             }
 
             var path = Path.GetFullPath(fileName);
-            var reference = Configurations.GetOrAdd(new(path, syncingBehavior), CreateConfigurationReference);
+            var reference = Configurations.GetOrAdd(new(path, serializer, syncingBehavior), CreateConfigurationReference);
 
             // 以下两个 if 一个 lock 是类似于单例模式的创建方式，既保证性能又保证只创建一次。
             if (!reference.TryGetTarget(out var config))
@@ -55,7 +58,7 @@ namespace dotnetCampus.Configurations.Core
                 {
                     if (!reference.TryGetTarget(out config))
                     {
-                        config = CreateConfiguration(path, syncingBehavior);
+                        config = CreateConfiguration(path, serializer, syncingBehavior);
                         reference.SetTarget(config);
                     }
                 }
@@ -70,8 +73,8 @@ namespace dotnetCampus.Configurations.Core
         /// </summary>
         /// <param name="key">已经过验证的完整文件路径和外部数据同步方式。</param>
         /// <returns><see cref="IAppConfigurator"/> 的弱引用实例。</returns>
-        private static WeakReference<FileConfigurationRepo> CreateConfigurationReference(RepoKey key)
-            => new(CreateConfiguration(key.FilePath, key.Syncing));
+        private static WeakReference<FileConfigurationRepo> CreateConfigurationReference(RepoKey key) =>
+            new(CreateConfiguration(key.FilePath, key.Serializer, key.Syncing));
 
         /// <summary>
         /// 创建 <see cref="IAppConfigurator"/> 的新实例。
@@ -80,9 +83,13 @@ namespace dotnetCampus.Configurations.Core
         /// <param name="path">已经过验证的完整文件路径。</param>
         /// <param name="syncingBehavior">指定应如何读取数据。是实时监听文件变更，还是只读一次，后续不再监听变更。后者性能更好。</param>
         /// <returns><see cref="IAppConfigurator"/> 的新实例。</returns>
-        private static FileConfigurationRepo CreateConfiguration(string path, RepoSyncingBehavior syncingBehavior)
+        private static FileConfigurationRepo CreateConfiguration(
+            string path,
+            IConfigurationSerializer serializer,
+            RepoSyncingBehavior syncingBehavior
+        )
 #pragma warning disable CS0618 // 类型或成员已过时
-            => new(path, syncingBehavior);
+            => new(path, serializer, syncingBehavior);
 #pragma warning restore CS0618 // 类型或成员已过时
 
         /// <summary>
@@ -105,21 +112,22 @@ namespace dotnetCampus.Configurations.Core
 
         private readonly struct RepoKey
         {
-            public RepoKey(string filePath, RepoSyncingBehavior syncing)
+            public RepoKey(string filePath, IConfigurationSerializer serializer, RepoSyncingBehavior syncing)
             {
                 FilePath = filePath ?? throw new ArgumentNullException(nameof(filePath));
+                Serializer = serializer;
                 Syncing = syncing;
             }
 
             public string FilePath { get; }
 
+            public IConfigurationSerializer Serializer { get; }
+
             public RepoSyncingBehavior Syncing { get; }
 
             public override bool Equals(object? obj)
             {
-                return obj is RepoKey key &&
-                       FilePath == key.FilePath &&
-                       Syncing == key.Syncing;
+                return obj is RepoKey key && FilePath == key.FilePath && Syncing == key.Syncing;
             }
 
             public override int GetHashCode()
