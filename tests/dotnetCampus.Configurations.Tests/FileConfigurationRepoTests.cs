@@ -27,8 +27,10 @@ namespace dotnetCampus.Configurations.Tests
                 var repo = CreateIndependentRepo(coin);
 
                 // Act && Assert
-                await Assert.ThrowsExceptionAsync<ArgumentNullException>(() => repo.WriteAsync(null!, "123")).ConfigureAwait(false);
-                _ = repo.WriteAsync("", "123");
+                await Assert
+                    .ThrowsExceptionAsync<ArgumentNullException>(() => repo.WriteAsync(null!, ConfigurationValue.Create("123")))
+                    .ConfigureAwait(false);
+                _ = repo.WriteAsync("", ConfigurationValue.Create("123"));
             });
 
             "写入空白的值，清空这一个值。".Test(async () =>
@@ -38,14 +40,14 @@ namespace dotnetCampus.Configurations.Tests
                 var repo = CreateIndependentRepo(coin);
 
                 // Act
-                await repo.WriteAsync("123", "123").ConfigureAwait(false);
+                await repo.WriteAsync("123", ConfigurationValue.Create("123")).ConfigureAwait(false);
                 await repo.WriteAsync("123", null).ConfigureAwait(false);
                 await repo.SaveAsync().ConfigureAwait(false);
 
                 // Assert
                 var repo2 = CreateIndependentRepo(coin);
-                var test = await repo.TryReadAsync("123", "默认").ConfigureAwait(false);
-                Assert.AreEqual("默认", test);
+                var test = await repo.TryReadAsync("123", ConfigurationValue.Create("默认")).ConfigureAwait(false);
+                Assert.AreEqual(ConfigurationValue.Create("默认"), test);
             });
 
             "如果文件存在重复的值，最后一个值生效。".Test(async () =>
@@ -58,7 +60,7 @@ namespace dotnetCampus.Configurations.Tests
                 var value = await repo.TryReadAsync("Value").ConfigureAwait(false);
 
                 // Assert
-                Assert.AreEqual("2", value);
+                Assert.AreEqual("2", value!.Value.Value);
             });
 
             "写入重复的值，最后一个值生效。".Test(async () =>
@@ -66,13 +68,13 @@ namespace dotnetCampus.Configurations.Tests
                 // Arrange
                 var coin = TestUtil.GetTempFile(null, ".coin");
                 var repo = CreateIndependentRepo(coin);
-                var keyvalueList = new List<KeyValuePair<string, string>>()
+                var keyvalueList = new List<KeyValuePair<string, ConfigurationValue?>>()
                 {
-                    new KeyValuePair<string, string>(">正常的值.Foo", ">123"),
-                    new KeyValuePair<string, string>(">正常的值.Foo", "新的值"),
-                    new KeyValuePair<string, string>("正常的值.Foo", "123"),
-                    new KeyValuePair<string, string>("?正常的值.Foo", "?123"),
-                    new KeyValuePair<string, string>("??正常的值.Foo", "?123"),
+                    new KeyValuePair<string, ConfigurationValue?>(">正常的值.Foo", ConfigurationValue.Create(">123")),
+                    new KeyValuePair<string, ConfigurationValue?>(">正常的值.Foo", ConfigurationValue.Create("新的值")),
+                    new KeyValuePair<string, ConfigurationValue?>("正常的值.Foo", ConfigurationValue.Create("123")),
+                    new KeyValuePair<string, ConfigurationValue?>("?正常的值.Foo", ConfigurationValue.Create("?123")),
+                    new KeyValuePair<string, ConfigurationValue?>("??正常的值.Foo", ConfigurationValue.Create("?123")),
                 };
 
                 // Act
@@ -85,7 +87,7 @@ namespace dotnetCampus.Configurations.Tests
                 // Assert
                 var repo2 = CreateIndependentRepo(coin);
                 var test = await repo2.TryReadAsync(">正常的值.Foo").ConfigureAwait(false);
-                Assert.AreEqual("新的值", test);
+                Assert.AreEqual("新的值", test!.Value.Value);
             });
 
             "写入需要转义的值，存放的文件是转义后的字符。".Test(async () =>
@@ -93,13 +95,13 @@ namespace dotnetCampus.Configurations.Tests
                 // Arrange
                 var coin = TestUtil.GetTempFile(null, ".coin");
                 var repo = CreateIndependentRepo(coin);
-                var keyvalueList = new List<KeyValuePair<string, string>>()
+                var keyvalueList = new List<KeyValuePair<string, ConfigurationValue?>>()
                 {
-                    new KeyValuePair<string, string>(">正常的值.Foo", ">123"),
-                    new KeyValuePair<string, string>(">>正常的值.Foo", ">123"),
-                    new KeyValuePair<string, string>("正常的值.Foo", "123"),
-                    new KeyValuePair<string, string>("?正常的值.Foo", "?123"),
-                    new KeyValuePair<string, string>("??正常的值.Foo", "?123"),
+                    new KeyValuePair<string, ConfigurationValue?>(">正常的值.Foo", ConfigurationValue.Create(">123")),
+                    new KeyValuePair<string, ConfigurationValue?>(">>正常的值.Foo", ConfigurationValue.Create(">123")),
+                    new KeyValuePair<string, ConfigurationValue?>("正常的值.Foo", ConfigurationValue.Create("123")),
+                    new KeyValuePair<string, ConfigurationValue?>("?正常的值.Foo", ConfigurationValue.Create("?123")),
+                    new KeyValuePair<string, ConfigurationValue?>("??正常的值.Foo", ConfigurationValue.Create("?123")),
                 };
 
                 // Act
@@ -114,7 +116,7 @@ namespace dotnetCampus.Configurations.Tests
                 foreach (var keyvalue in keyvalueList)
                 {
                     var test = await repo2.TryReadAsync(keyvalue.Key).ConfigureAwait(false);
-                    Assert.AreEqual(keyvalue.Value, test);
+                    Assert.AreEqual(keyvalue.Value.Value.Value, test.Value.Value);
                 }
             });
 
@@ -125,13 +127,13 @@ namespace dotnetCampus.Configurations.Tests
                 var repo = CreateIndependentRepo(coin);
 
                 // Act
-                await repo.WriteAsync("正常的值.Foo", "123").ConfigureAwait(false);
+                await repo.WriteAsync("正常的值.Foo", ConfigurationValue.Create("123")).ConfigureAwait(false);
                 await repo.SaveAsync().ConfigureAwait(false);
 
                 // Assert
                 var repo2 = CreateIndependentRepo(coin);
                 var test = await repo2.TryReadAsync("正常的值.Foo").ConfigureAwait(false);
-                Assert.AreEqual("123", test);
+                Assert.AreEqual("123", test!.Value.Value);
             });
 
             "多行存储，可以多行读出。".Test(async () =>
@@ -144,9 +146,11 @@ namespace dotnetCampus.Configurations.Tests
 #pragma warning disable CS4014 // 由于此调用不会等待，因此在调用完成前将继续执行当前方法
                 repo.WriteAsync(
                     "Foo.MultilineValue",
-                    @"1
+                    ConfigurationValue.Create(
+                        @"1
 2
 3"
+                    )
                 );
 #pragma warning restore CS4014 // 由于此调用不会等待，因此在调用完成前将继续执行当前方法
                 await repo.SaveAsync().ConfigureAwait(false);
@@ -154,7 +158,7 @@ namespace dotnetCampus.Configurations.Tests
                 // Assert
                 var repo2 = CreateIndependentRepo(coin);
                 var str = await repo2.TryReadAsync("Foo.MultilineValue").ConfigureAwait(false);
-                Assert.AreEqual("1\n2\n3", str);
+                Assert.AreEqual("1\n2\n3", str!.Value.Value);
             });
 
             "如果将值设置为默认值，则配置项会删除。".Test(async () =>
@@ -165,13 +169,13 @@ namespace dotnetCampus.Configurations.Tests
 
                 // Act
                 var value = await repo.TryReadAsync("Test").ConfigureAwait(false);
-                Assert.AreEqual("True", value);
+                Assert.AreEqual("True", value.Value.Value);
                 await repo.WriteAsync("Test", null).ConfigureAwait(false);
                 await repo.SaveAsync().ConfigureAwait(false);
 
                 // Assert
                 var value2 = await CreateIndependentRepo(coin).TryReadAsync("Test").ConfigureAwait(false);
-                Assert.AreEqual("", value2);
+                Assert.AreEqual(null, value2);
             });
         }
 
@@ -202,7 +206,7 @@ namespace dotnetCampus.Configurations.Tests
                 var repo = CreateIndependentRepo(coin);
 
                 // Act
-                await repo.WriteAsync("Test.Create", "True").ConfigureAwait(false);
+                await repo.WriteAsync("Test.Create", ConfigurationValue.Create("True")).ConfigureAwait(false);
                 await repo.SaveAsync().ConfigureAwait(false);
 
                 // Assert
@@ -221,7 +225,7 @@ namespace dotnetCampus.Configurations.Tests
                 var repo = CreateIndependentRepo(coin);
 
                 // Act
-                await repo.WriteAsync("Test.Create", "True").ConfigureAwait(false);
+                await repo.WriteAsync("Test.Create", ConfigurationValue.Create("True")).ConfigureAwait(false);
                 await repo.SaveAsync().ConfigureAwait(false);
 
                 // Assert
@@ -245,7 +249,7 @@ namespace dotnetCampus.Configurations.Tests
                 var value = await repo.TryReadAsync("Test").ConfigureAwait(false);
 
                 // Assert
-                Assert.AreEqual("True", value);
+                Assert.AreEqual("True", value!.Value.Value);
             });
 
             "如果配置文件存在但配置不存在，那么能读取到默认值。".Test(async () =>
@@ -258,7 +262,7 @@ namespace dotnetCampus.Configurations.Tests
                 var value = await repo.TryReadAsync("NotExist").ConfigureAwait(false);
 
                 // Assert
-                Assert.AreEqual("", value);
+                Assert.AreEqual(null, value);
             });
         }
 

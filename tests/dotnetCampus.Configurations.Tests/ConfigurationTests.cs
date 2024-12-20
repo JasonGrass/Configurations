@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -19,10 +19,17 @@ namespace dotnetCampus.Configurations.Tests
             "综合测试，用于断点调试配置项执行流程。".Test(() =>
             {
                 // Arrange
-                var dictionary = new Dictionary<string, string>(StringComparer.Ordinal);
+                var dictionary = new Dictionary<string, ConfigurationValue?>(StringComparer.Ordinal);
                 var configuration = CreateConfiguration(
-                    key => dictionary.TryGetValue(key, out var value) ? value : string.Empty,
-                    (key, value) => dictionary[key] = value);
+                    key =>
+                    {
+                        return dictionary.TryGetValue(key, out var value) ? value : null;
+                    },
+                    (key, value) =>
+                    {
+                        dictionary[key] = value;
+                    }
+                );
                 var fake = configuration.Of<DebugConfiguration>();
 
                 // Act
@@ -87,18 +94,18 @@ namespace dotnetCampus.Configurations.Tests
                 //Assert.AreEqual(new DateTime(2020, 12, 04, 16, 03, 49, 591, DateTimeKind.Local), fake.DateTime);
                 Assert.AreEqual(new DateTimeOffset(2020, 12, 04, 16, 03, 49, 591, TimeSpan.FromHours(8)), fake.DateTimeOffset);
                 //Assert.AreEqual(new Rect(10, 20, 200, 100), fake.Bounds);
-                Assert.AreEqual("True", dictionary["Debug.IsTested"]);
-                Assert.AreEqual("123.51243634523452345123514251", dictionary["Debug.Amount"]);
-                Assert.AreEqual("100", dictionary["Debug.OffsetX"]);
-                Assert.AreEqual("69.5", dictionary["Debug.SizeX"]);
-                Assert.AreEqual("50", dictionary["Debug.Count"]);
-                Assert.AreEqual("50", dictionary["Debug.Count2"]);
-                Assert.AreEqual("1230004132413241", dictionary["Debug.Length"]);
-                Assert.AreEqual("1230004132413241", dictionary["Debug.Length2"]);
-                Assert.AreEqual("ABC", dictionary["Debug.Message"]);
-                Assert.AreEqual("NoInlining", dictionary["Debug.MethodImpl"]);
+                Assert.AreEqual("True", dictionary["Debug.IsTested"]!.Value.Value);
+                Assert.AreEqual("123.51243634523452345123514251", dictionary["Debug.Amount"]!.Value.Value);
+                Assert.AreEqual("100", dictionary["Debug.OffsetX"]!.Value.Value);
+                Assert.AreEqual("69.5", dictionary["Debug.SizeX"]!.Value.Value);
+                Assert.AreEqual("50", dictionary["Debug.Count"]!.Value.Value);
+                Assert.AreEqual("50", dictionary["Debug.Count2"]!.Value.Value);
+                Assert.AreEqual("1230004132413241", dictionary["Debug.Length"]!.Value.Value);
+                Assert.AreEqual("1230004132413241", dictionary["Debug.Length2"]!.Value.Value);
+                Assert.AreEqual("ABC", dictionary["Debug.Message"]!.Value.Value);
+                Assert.AreEqual("NoInlining", dictionary["Debug.MethodImpl"]!.Value.Value);
                 //Assert.AreEqual("2020-12-04T16:03:49.5910000Z", dictionary["Debug.DateTime"]);
-                Assert.AreEqual("2020-12-04T16:03:49.5910000+08:00", dictionary["Debug.DateTimeOffset"]);
+                Assert.AreEqual("2020-12-04T16:03:49.5910000+08:00", dictionary["Debug.DateTimeOffset"]!.Value.Value);
                 //Assert.AreEqual("10,20,200,100", dictionary["Debug.Bounds"]);
                 //Assert.AreEqual("#FF008080", dictionary["Debug.Color"]);
 
@@ -122,10 +129,11 @@ namespace dotnetCampus.Configurations.Tests
             "默认的配置不带前缀。".Test(() =>
             {
                 // Arrange
-                var dictionary = new Dictionary<string, string>();
+                var dictionary = new Dictionary<string, ConfigurationValue?>();
                 var configuration = CreateConfiguration(
-                    key => dictionary.TryGetValue(key, out var value) ? value : string.Empty,
-                    (key, value) => dictionary[key] = value);
+                    key => dictionary.TryGetValue(key, out var value) ? value : null,
+                    (key, value) => dictionary[key] = value
+                );
                 var @default = configuration.Default;
 
                 // Act
@@ -134,7 +142,7 @@ namespace dotnetCampus.Configurations.Tests
 
                 // Assert
                 Assert.AreEqual("", defaultFoo);
-                Assert.AreEqual("Bar", dictionary["Foo"]);
+                Assert.AreEqual("Bar", dictionary["Foo"]!.Value.Value);
             });
 
             "同一份配置组只会有一个实例。".Test(() =>
@@ -165,10 +173,11 @@ namespace dotnetCampus.Configurations.Tests
             "配置允许值类型存入 null 值，取出时也为 null 值。".Test(() =>
             {
                 // Arrange
-                var dictionary = new Dictionary<string, string>();
+                var dictionary = new Dictionary<string, ConfigurationValue?>();
                 var configuration = CreateConfiguration(
-                    key => dictionary.TryGetValue(key, out var value) ? value : string.Empty,
-                    (key, value) => dictionary[key] = value);
+                    key => dictionary.TryGetValue(key, out var value) ? value : null,
+                    (key, value) => dictionary[key] = value
+                );
                 var fake = configuration.Of<DebugConfiguration>();
 
                 // Act
@@ -182,10 +191,10 @@ namespace dotnetCampus.Configurations.Tests
         [ContractTestCase]
         public void GetStringWithDefaultValue()
         {
-            "如果获取 String 时，获取到了空字符串，那么可以通过 ?? 转换成默认值。".Test(() =>
+            "如果获取 String 时，获取到了空，那么可以通过 ?? 转换成默认值。".Test(() =>
             {
                 // Arrange
-                var configuration = CreateConfiguration(key => string.Empty);
+                var configuration = CreateConfiguration(key => null);
                 var fake = configuration.Of<DebugConfiguration>();
 
                 // Act
@@ -202,12 +211,13 @@ namespace dotnetCampus.Configurations.Tests
             "如果清除了配置项，那么之前存的所有键值就都恢复默认值。".Test(() =>
             {
                 // Arrange
-                var dictionary = new Dictionary<string, string>();
+                var dictionary = new Dictionary<string, ConfigurationValue?>();
                 var configuration = CreateConfiguration(
-                    key => dictionary.TryGetValue(key, out var value) ? value : string.Empty,
+                    key => dictionary.TryGetValue(key, out var value) ? value : null,
                     (key, value) => dictionary[key] = value,
-                    keyFilter => RemoveKeys(dictionary, keyFilter));
-                dictionary["遗留项"] = "随便";
+                    keyFilter => RemoveKeys(dictionary, keyFilter)
+                );
+                dictionary["遗留项"] = ConfigurationValue.Create("随便");
 
                 // Act
                 var fake = configuration.Of<DebugConfiguration>();
@@ -234,22 +244,24 @@ namespace dotnetCampus.Configurations.Tests
         /// <param name="clearValues">模拟 <see cref="IConfigurationRepo.ClearValues"/> 方法。</param>
         /// <returns><see cref="IAppConfigurator"/> 的模拟实例。</returns>
         private IAppConfigurator CreateConfiguration(
-            Func<string, string> getValue = null, Action<string, string> setValue = null,
-            Action<Predicate<string>> clearValues = null)
+            Func<string, ConfigurationValue?> getValue = null,
+            Action<string, ConfigurationValue?> setValue = null,
+            Action<Predicate<string>> clearValues = null
+        )
         {
             var managerMock = new Mock<IConfigurationRepo>();
-            managerMock.Setup(m => m.CreateAppConfigurator())
-                .Returns(new ConcurrentAppConfigurator(managerMock.Object));
-            managerMock.Setup(m => m.GetValue(It.IsAny<string>()))
-                .Returns<string>(key => getValue?.Invoke(key));
-            managerMock.Setup(m => m.SetValue(It.IsAny<string>(), It.IsAny<string>()))
-                .Callback<string, string>((key, value) => setValue?.Invoke(key, value));
-            managerMock.Setup(m => m.ClearValues(It.IsAny<Predicate<string>>()))
+            managerMock.Setup(m => m.CreateAppConfigurator()).Returns(new ConcurrentAppConfigurator(managerMock.Object));
+            managerMock.Setup(m => m.GetValue(It.IsAny<string>())).Returns<string>(key => getValue?.Invoke(key));
+            managerMock
+                .Setup(m => m.SetValue(It.IsAny<string>(), It.IsAny<ConfigurationValue?>()))
+                .Callback<string, ConfigurationValue?>((key, value) => setValue?.Invoke(key, value));
+            managerMock
+                .Setup(m => m.ClearValues(It.IsAny<Predicate<string>>()))
                 .Callback<Predicate<string>>(keyFilter => clearValues?.Invoke(keyFilter));
             return managerMock.Object.CreateAppConfigurator();
         }
 
-        private static void RemoveKeys(Dictionary<string, string> dictionary, Predicate<string> keyFilter)
+        private static void RemoveKeys(Dictionary<string, ConfigurationValue?> dictionary, Predicate<string> keyFilter)
         {
             if (keyFilter == null)
             {
