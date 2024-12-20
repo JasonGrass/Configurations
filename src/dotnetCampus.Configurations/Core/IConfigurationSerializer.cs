@@ -98,7 +98,7 @@ public record struct ConfigurationValue()
 
     public ConfigurationValue AppendLine(string newValue)
     {
-        this.Value += this.Value + "\n" + newValue;
+        this.Value = this.Value + "\n" + newValue;
         return this;
     }
 
