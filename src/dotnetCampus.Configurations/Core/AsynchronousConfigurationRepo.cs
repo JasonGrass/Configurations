@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Linq;
@@ -26,7 +26,7 @@ namespace dotnetCampus.Configurations.Core
         /// </summary>
         /// <param name="key">配置项的标识符。</param>
         /// <returns>配置项的值。</returns>
-        string? IConfigurationRepo.GetValue(string key)
+        ConfigurationValue? IConfigurationRepo.GetValue(string key)
         {
             VerifyKey(key);
 
@@ -39,7 +39,7 @@ namespace dotnetCampus.Configurations.Core
         /// </summary>
         /// <param name="key">配置项的标识符。</param>
         /// <param name="value">配置项的值。</param>
-        void IConfigurationRepo.SetValue(string key, string? value)
+        void IConfigurationRepo.SetValue(string key, ConfigurationValue? value)
         {
             VerifyKey(key, true);
 
@@ -89,13 +89,8 @@ namespace dotnetCampus.Configurations.Core
         /// <param name="key"></param>
         /// <param name="default">如果无法读取到信息，默认返回的值</param>
         /// <returns></returns>
-        public async Task<string> TryReadAsync(string key, string @default = "")
+        public async Task<ConfigurationValue?> TryReadAsync(string key, ConfigurationValue? @default = null)
         {
-            if (@default == null)
-            {
-                throw new ArgumentNullException(nameof(@default));
-            }
-
             VerifyKey(key);
 
             var value = await ReadValueCoreAsync(key).ConfigureAwait(false);
@@ -107,19 +102,19 @@ namespace dotnetCampus.Configurations.Core
         /// </summary>
         /// <param name="key"></param>
         /// <param name="value"></param>
-        public async Task WriteAsync(string key, string? value)
+        public async Task WriteAsync(string key, ConfigurationValue? value)
         {
             VerifyKey(key, true);
 
             // 如果值没有变化，则不做任何处理。
             var originalValue = await TryReadAsync(key).ConfigureAwait(false);
-            if (originalValue.Equals(value, StringComparison.InvariantCulture))
+            if (ConfigurationValue.IsEquals(originalValue, value))
             {
                 return;
             }
 
             // 由子类处理值的改变。
-            if (value is null || string.IsNullOrEmpty(value))
+            if (value is null || value.Value.IsEmpty())
             {
                 await RemoveValueCoreAsync(key).ConfigureAwait(false);
             }
@@ -159,14 +154,14 @@ namespace dotnetCampus.Configurations.Core
         /// <returns>
         /// 执行项的 Key，如果不存在，则为 null / Task&lt;string&gt;.FromResult(null)"/>。
         /// </returns>
-        protected abstract Task<string?> ReadValueCoreAsync(string key);
+        protected abstract Task<ConfigurationValue?> ReadValueCoreAsync(string key);
 
         /// <summary>
         /// 派生类重写此方法时，将为指定的 Key 存储指定的值。
         /// </summary>
         /// <param name="key">指定项的 Key。</param>
         /// <param name="value">要存储的值。</param>
-        protected abstract Task WriteValueCoreAsync(string key, string value);
+        protected abstract Task WriteValueCoreAsync(string key, ConfigurationValue? value);
 
         /// <summary>
         /// 派生类重写此方法时，将为指定的 Key 清除。
@@ -206,8 +201,7 @@ namespace dotnetCampus.Configurations.Core
             /// 要求配置的保存过程跟踪此异步操作，使得后续的状态处理必须在此异步操作结束之后才能执行。
             /// </summary>
             /// <param name="action">异步操作。</param>
-            public void TrackAsyncAction(Task action) =>
-                _trackedAction = action ?? throw new ArgumentNullException(nameof(action));
+            public void TrackAsyncAction(Task action) => _trackedAction = action ?? throw new ArgumentNullException(nameof(action));
 
             /// <summary>
             /// 获取此对象储存的跟踪的异步操作。

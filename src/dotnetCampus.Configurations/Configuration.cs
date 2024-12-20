@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
@@ -27,8 +27,7 @@ namespace dotnetCampus.Configurations
         /// <summary>
         /// 创建 <see cref="Configuration"/> 类型的新实例，当存储值时，其前准为 <paramref name="sectionName"/>。
         /// </summary>
-        protected Configuration(string? sectionName)
-            => _section = string.IsNullOrEmpty(sectionName) ? "" : $"{sectionName}.";
+        protected Configuration(string? sectionName) => _section = string.IsNullOrEmpty(sectionName) ? "" : $"{sectionName}.";
 
         /// <summary>
         /// 在派生类中为属性的 get 访问器提供获取配置值的方法。
@@ -39,10 +38,12 @@ namespace dotnetCampus.Configurations
         protected bool? GetBoolean([CallerMemberName] string? key = null)
         {
             var value = GetValue(key);
-            return !string.IsNullOrWhiteSpace(value)
-                && bool.TryParse(value, out var result)
-                ? result
-                : (bool?)null;
+            if (value == null)
+            {
+                return null;
+            }
+
+            return bool.TryParse(value.Value.Value, out var result) ? result : (bool?)null;
         }
 
         /// <summary>
@@ -54,10 +55,12 @@ namespace dotnetCampus.Configurations
         protected decimal? GetDecimal([CallerMemberName] string? key = null)
         {
             var value = GetValue(key);
-            return !string.IsNullOrWhiteSpace(value)
-                && decimal.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out var result)
-                ? result
-                : (decimal?)null;
+            if (value == null)
+            {
+                return null;
+            }
+
+            return decimal.TryParse(value.Value.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out var result) ? result : (decimal?)null;
         }
 
         /// <summary>
@@ -69,10 +72,12 @@ namespace dotnetCampus.Configurations
         protected double? GetDouble([CallerMemberName] string? key = null)
         {
             var value = GetValue(key);
-            return !string.IsNullOrWhiteSpace(value)
-                && double.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out var result)
-                ? result
-                : (double?)null;
+            if (value == null)
+            {
+                return null;
+            }
+
+            return double.TryParse(value.Value.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out var result) ? result : (double?)null;
         }
 
         /// <summary>
@@ -84,10 +89,12 @@ namespace dotnetCampus.Configurations
         protected float? GetSingle([CallerMemberName] string? key = null)
         {
             var value = GetValue(key);
-            return !string.IsNullOrWhiteSpace(value)
-                && float.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out var result)
-                ? result
-                : (float?)null;
+            if (value == null)
+            {
+                return null;
+            }
+
+            return float.TryParse(value.Value.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out var result) ? result : (float?)null;
         }
 
         /// <summary>
@@ -99,10 +106,11 @@ namespace dotnetCampus.Configurations
         protected int? GetInt32([CallerMemberName] string? key = null)
         {
             var value = GetValue(key);
-            return !string.IsNullOrWhiteSpace(value)
-                && int.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out var result)
-                ? result
-                : (int?)null;
+            if (value == null)
+            {
+                return null;
+            }
+            return int.TryParse(value.Value.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out var result) ? result : (int?)null;
         }
 
         /// <summary>
@@ -114,10 +122,12 @@ namespace dotnetCampus.Configurations
         protected long? GetInt64([CallerMemberName] string? key = null)
         {
             var value = GetValue(key);
-            return !string.IsNullOrWhiteSpace(value)
-                && long.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out var result)
-                ? result
-                : (long?)null;
+            if (value == null)
+            {
+                return null;
+            }
+
+            return long.TryParse(value.Value.Value, NumberStyles.Any, CultureInfo.InvariantCulture, out var result) ? result : (long?)null;
         }
 
         /// <summary>
@@ -130,10 +140,11 @@ namespace dotnetCampus.Configurations
             where T : struct, IConvertible
         {
             var value = GetValue(key);
-            return !string.IsNullOrWhiteSpace(value)
-                && Enum.TryParse<T>(value, out var result)
-                ? result
-                : (T?)null;
+            if (value == null)
+            {
+                return null;
+            }
+            return Enum.TryParse<T>(value.Value.Value, out var result) ? result : (T?)null;
         }
 
         /// <summary>
@@ -146,7 +157,9 @@ namespace dotnetCampus.Configurations
         /// <param name="key">配置项的标识符，自动从属性名中获取。</param>
         /// <returns>配置项的值。</returns>
         protected ConfigurationString? GetString([CallerMemberName] string? key = null)
-            => GetValue(key);
+        {
+            return GetValue(key)?.Value;
+        }
 
         /// <summary>
         /// 在派生类中为属性的 get 访问器提供获取配置值的方法。
@@ -154,7 +167,7 @@ namespace dotnetCampus.Configurations
         /// </summary>
         /// <param name="key">配置项的标识符，自动从属性名中获取。</param>
         /// <returns>配置项的值。</returns>
-        internal string? GetValue([CallerMemberName] string? key = null)
+        internal ConfigurationValue? GetValue([CallerMemberName] string? key = null)
         {
             if (key is null)
             {
@@ -175,48 +188,48 @@ namespace dotnetCampus.Configurations
         /// </summary>
         /// <param name="value">配置项的值。</param>
         /// <param name="key">配置项的标识符，自动从属性名中获取。</param>
-        protected void SetValue(bool? value, [CallerMemberName] string? key = null)
-            => SetValue(value?.ToString(CultureInfo.InvariantCulture) ?? "", key);
+        protected void SetValue(bool? value, [CallerMemberName] string? key = null) =>
+            SetValue(value?.ToString(CultureInfo.InvariantCulture) ?? "", key);
 
         /// <summary>
         /// 在派生类中为属性的 set 访问器提供设置配置值的方法。
         /// </summary>
         /// <param name="value">配置项的值。</param>
         /// <param name="key">配置项的标识符，自动从属性名中获取。</param>
-        protected void SetValue(decimal? value, [CallerMemberName] string? key = null)
-            => SetValue(value?.ToString(CultureInfo.InvariantCulture) ?? "", key);
+        protected void SetValue(decimal? value, [CallerMemberName] string? key = null) =>
+            SetValue(value?.ToString(CultureInfo.InvariantCulture) ?? "", key);
 
         /// <summary>
         /// 在派生类中为属性的 set 访问器提供设置配置值的方法。
         /// </summary>
         /// <param name="value">配置项的值。</param>
         /// <param name="key">配置项的标识符，自动从属性名中获取。</param>
-        protected void SetValue(double? value, [CallerMemberName] string? key = null)
-            => SetValue(value?.ToString(CultureInfo.InvariantCulture) ?? "", key);
+        protected void SetValue(double? value, [CallerMemberName] string? key = null) =>
+            SetValue(value?.ToString(CultureInfo.InvariantCulture) ?? "", key);
 
         /// <summary>
         /// 在派生类中为属性的 set 访问器提供设置配置值的方法。
         /// </summary>
         /// <param name="value">配置项的值。</param>
         /// <param name="key">配置项的标识符，自动从属性名中获取。</param>
-        protected void SetValue(float? value, [CallerMemberName] string? key = null)
-            => SetValue(value?.ToString(CultureInfo.InvariantCulture) ?? "", key);
+        protected void SetValue(float? value, [CallerMemberName] string? key = null) =>
+            SetValue(value?.ToString(CultureInfo.InvariantCulture) ?? "", key);
 
         /// <summary>
         /// 在派生类中为属性的 set 访问器提供设置配置值的方法。
         /// </summary>
         /// <param name="value">配置项的值。</param>
         /// <param name="key">配置项的标识符，自动从属性名中获取。</param>
-        protected void SetValue(int? value, [CallerMemberName] string? key = null)
-            => SetValue(value?.ToString(CultureInfo.InvariantCulture) ?? "", key);
+        protected void SetValue(int? value, [CallerMemberName] string? key = null) =>
+            SetValue(value?.ToString(CultureInfo.InvariantCulture) ?? "", key);
 
         /// <summary>
         /// 在派生类中为属性的 set 访问器提供设置配置值的方法。
         /// </summary>
         /// <param name="value">配置项的值。</param>
         /// <param name="key">配置项的标识符，自动从属性名中获取。</param>
-        protected void SetValue(long? value, [CallerMemberName] string? key = null)
-            => SetValue(value?.ToString(CultureInfo.InvariantCulture) ?? "", key);
+        protected void SetValue(long? value, [CallerMemberName] string? key = null) =>
+            SetValue(value?.ToString(CultureInfo.InvariantCulture) ?? "", key);
 
         /// <summary>
         /// 在派生类中为属性的 set 访问器提供设置配置值的方法。
@@ -224,8 +237,7 @@ namespace dotnetCampus.Configurations
         /// <param name="value">配置项的值。</param>
         /// <param name="key">配置项的标识符，自动从属性名中获取。</param>
         protected void SetEnum<T>(T? value, [CallerMemberName] string? key = null)
-            where T : struct, IConvertible
-            => SetValue(value?.ToString() ?? "", key);
+            where T : struct, IConvertible => SetValue(value?.ToString() ?? "", key);
 
         /// <summary>
         /// 在派生类中为属性的 set 访问器提供设置配置值的方法。
@@ -247,7 +259,11 @@ namespace dotnetCampus.Configurations
 
             // value.ToString() 可以拿到一定非 null 的字符串；
             // value?.ToString() 则可以在字符串为 null/"" 时拿到 null。
-            Repo.SetValue($"{_section}{key}", value?.ToString());
+
+            // 可能会丢失注释和分组数据？
+            var v = new ConfigurationValue(value?.ToString(), null, null);
+
+            Repo.SetValue($"{_section}{key}", v);
         }
 
         /// <summary>
@@ -280,13 +296,11 @@ namespace dotnetCampus.Configurations
         /// </summary>
         /// <param name="appConfigurator"></param>
         /// <returns></returns>
-        public bool TryGetAppConfigurator
-            (
+        public bool TryGetAppConfigurator(
 #if NETCOREAPP3_0_OR_GREATER
-                [NotNullWhen(true)]
+            [NotNullWhen(true)]
 #endif
-                out IAppConfigurator? appConfigurator
-            )
+            out IAppConfigurator? appConfigurator)
         {
             appConfigurator = AppConfigurator;
             return appConfigurator != null;

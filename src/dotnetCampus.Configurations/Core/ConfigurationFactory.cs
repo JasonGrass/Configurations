@@ -24,7 +24,7 @@ namespace dotnetCampus.Configurations.Core
         /// <param name="fileName">来自于本地文件系统的文件名/路径。文件或文件所在的文件夹不需要提前存在。</param>
         /// <param name="serializer">指定配置的序列化器，不同的配置文件，对应不同的序列化操作</param>
         /// <returns>一个用于管理指定文件的配置仓库。</returns>
-        public static FileConfigurationRepo FromFile(string fileName, IConfigurationSerializer serializer) =>
+        public static FileConfigurationRepo FromFile(string fileName, IConfigurationSerializer<string, ConfigurationValue?> serializer) =>
             FromFile(fileName, serializer, RepoSyncingBehavior.Sync);
 
         /// <summary>
@@ -36,7 +36,11 @@ namespace dotnetCampus.Configurations.Core
         /// <param name="serializer">指定配置的序列化器，不同的配置文件，对应不同的序列化操作</param>
         /// <param name="syncingBehavior">指定应如何读取数据。是实时监听文件变更，还是只读一次，后续不再监听变更。后者性能更好。</param>
         /// <returns>一个用于管理指定文件的配置仓库。</returns>
-        public static FileConfigurationRepo FromFile(string fileName, IConfigurationSerializer serializer, RepoSyncingBehavior syncingBehavior)
+        public static FileConfigurationRepo FromFile(
+            string fileName,
+            IConfigurationSerializer<string, ConfigurationValue?> serializer,
+            RepoSyncingBehavior syncingBehavior
+        )
         {
             if (fileName == null)
             {
@@ -85,7 +89,7 @@ namespace dotnetCampus.Configurations.Core
         /// <returns><see cref="IAppConfigurator"/> 的新实例。</returns>
         private static FileConfigurationRepo CreateConfiguration(
             string path,
-            IConfigurationSerializer serializer,
+            IConfigurationSerializer<string, ConfigurationValue?> serializer,
             RepoSyncingBehavior syncingBehavior
         )
 #pragma warning disable CS0618 // 类型或成员已过时
@@ -112,7 +116,7 @@ namespace dotnetCampus.Configurations.Core
 
         private readonly struct RepoKey
         {
-            public RepoKey(string filePath, IConfigurationSerializer serializer, RepoSyncingBehavior syncing)
+            public RepoKey(string filePath, IConfigurationSerializer<string, ConfigurationValue?> serializer, RepoSyncingBehavior syncing)
             {
                 FilePath = filePath ?? throw new ArgumentNullException(nameof(filePath));
                 Serializer = serializer;
@@ -121,7 +125,7 @@ namespace dotnetCampus.Configurations.Core
 
             public string FilePath { get; }
 
-            public IConfigurationSerializer Serializer { get; }
+            public IConfigurationSerializer<string, ConfigurationValue?> Serializer { get; }
 
             public RepoSyncingBehavior Syncing { get; }
 

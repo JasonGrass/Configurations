@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace dotnetCampus.Configurations.Core
 {
@@ -11,10 +11,10 @@ namespace dotnetCampus.Configurations.Core
         public IAppConfigurator CreateAppConfigurator() => new ConcurrentAppConfigurator(this);
 
         /// <inheritdoc />
-        public abstract string? GetValue(string key);
+        public abstract ConfigurationValue? GetValue(string key);
 
         /// <inheritdoc />
-        public abstract void SetValue(string key, string? value);
+        public abstract void SetValue(string key, ConfigurationValue? value);
 
         /// <inheritdoc />
         public abstract void ClearValues(Predicate<string> keyFilter);

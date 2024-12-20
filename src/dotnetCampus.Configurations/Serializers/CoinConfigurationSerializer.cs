@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,7 +10,7 @@ namespace dotnetCampus.Configurations.Serializers
     /// <summary>
     /// 配置文件 Coin 序列化
     /// </summary>
-    public class CoinConfigurationSerializer : IConfigurationSerializer
+    public class CoinConfigurationSerializer : IConfigurationSerializer<string, ConfigurationValue?>
     {
         /// <summary>
         /// 存储的转义
@@ -71,9 +71,7 @@ namespace dotnetCampus.Configurations.Serializers
             return Serialize(keyValuePairList);
         }
 
-        private static string Serialize(
-            IOrderedEnumerable<KeyValuePair<string, string?>> keyValuePairList
-        )
+        private static string Serialize(IOrderedEnumerable<KeyValuePair<string, string?>> keyValuePairList)
         {
             var str = new StringBuilder();
             str.Append("> 配置文件\n");
@@ -95,6 +93,17 @@ namespace dotnetCampus.Configurations.Serializers
 
         private static string _splitString = ">";
         private static string _escapeString = "?";
+
+        string IConfigurationSerializer<string, ConfigurationValue?>.Serialize(IReadOnlyDictionary<string, ConfigurationValue?> keyValue)
+        {
+            return Serialize(keyValue.ToDictionary(v => v.Key, v => v.Value?.Value));
+        }
+
+        IDictionary<string, ConfigurationValue?> IConfigurationSerializer<string, ConfigurationValue?>.Deserialize(string str)
+        {
+            var dictionary = this.Deserialize(str);
+            return dictionary.ToDictionary(v => v.Key, v => (ConfigurationValue?)new ConfigurationValue(v.Value, null, null));
+        }
 
         /// <summary>
         /// 反序列化的核心实现，反序列化字符串

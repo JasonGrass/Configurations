@@ -1,12 +1,13 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
-
+using dotnetCampus.Configurations.Core;
 using dotnetCampus.Configurations.Utils;
 
 namespace dotnetCampus.Configurations.Concurrent
@@ -24,10 +25,8 @@ namespace dotnetCampus.Configurations.Concurrent
         {
             // Windows NTFS, 100ns
             "NTFS",
-
             // macOS APFS, 1ns
             "APFS",
-
             // Linux, 1ms
             "EXT4",
 
@@ -44,8 +43,7 @@ namespace dotnetCampus.Configurations.Concurrent
         };
 
         private readonly FileInfo _file;
-        private readonly Func<IReadOnlyDictionary<TKey, TValue>, string> _serializer;
-        private readonly Func<string, IReadOnlyDictionary<TKey, TValue>> _deserializer;
+        private readonly IConfigurationSerializer<TKey, TValue> _serializer;
         private readonly FileEqualsComparison _fileEqualsComparison;
 
         /// <summary>
@@ -91,17 +89,16 @@ namespace dotnetCampus.Configurations.Concurrent
         /// 创建 <see cref="FileDictionarySynchronizer{TKey, TValue}"/> 的新实例，这个实例将帮助同步一个文件和一个内存中的跨进程安全的字典。
         /// </summary>
         /// <param name="file">要同步的文件。</param>
-        /// <param name="serializer">指定如何从键值集合序列化成一个字符串。</param>
-        /// <param name="deserializer">指定如何从一个字符串反序列化成一个键值集合。</param>
+        /// <param name="serializer"></param>
         /// <param name="fileEqualsComparison">指定如何表示文件内容相同或不同。</param>
-        public FileDictionarySynchronizer(FileInfo file,
-            Func<IReadOnlyDictionary<TKey, TValue>, string> serializer,
-            Func<string, IReadOnlyDictionary<TKey, TValue>> deserializer,
-            FileEqualsComparison fileEqualsComparison = FileEqualsComparison.WholeTextEquals)
+        public FileDictionarySynchronizer(
+            FileInfo file,
+            IConfigurationSerializer<TKey, TValue> serializer,
+            FileEqualsComparison fileEqualsComparison = FileEqualsComparison.WholeTextEquals
+        )
         {
             _file = file ?? throw new ArgumentNullException(nameof(file));
             _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
-            _deserializer = deserializer ?? throw new ArgumentNullException(nameof(deserializer));
             _fileEqualsComparison = fileEqualsComparison;
 
             try
@@ -142,8 +139,7 @@ namespace dotnetCampus.Configurations.Concurrent
         /// <summary>
         /// 存储运行时保存的键值对。
         /// </summary>
-        public ProcessConcurrentDictionary<TKey, TValue> Dictionary { get; }
-            = new ProcessConcurrentDictionary<TKey, TValue>();
+        public ProcessConcurrentDictionary<TKey, TValue> Dictionary { get; } = new ProcessConcurrentDictionary<TKey, TValue>();
 
         /// <summary>
         /// 以不安全的方式检查此文件的本次改变是否来自于本进程的写入。
@@ -174,26 +170,29 @@ namespace dotnetCampus.Configurations.Concurrent
         /// <returns>可异步等待的对象。</returns>
         public void Synchronize()
         {
-            Dictionary.UpdateValuesFromExternal(_file, context =>
-            {
-                // 此处代码是跨进程安全的。
-                CT.Log($"正在同步，已进入进程安全区...", _file.Name);
-                try
+            Dictionary.UpdateValuesFromExternal(
+                _file,
+                context =>
                 {
-                    SynchronizeCore(context);
-                    return;
+                    // 此处代码是跨进程安全的。
+                    CT.Log($"正在同步，已进入进程安全区...", _file.Name);
+                    try
+                    {
+                        SynchronizeCore(context);
+                        return;
+                    }
+                    catch (IOException)
+                    {
+                        // 可能存在某些旧版本的代码通过非进程安全的方式读写文件。
+                        Interlocked.Increment(ref _fileSyncingErrorCount);
+                        throw;
+                    }
+                    finally
+                    {
+                        CT.Log($"正在同步，已退出进程安全区...", _file.Name);
+                    }
                 }
-                catch (IOException)
-                {
-                    // 可能存在某些旧版本的代码通过非进程安全的方式读写文件。
-                    Interlocked.Increment(ref _fileSyncingErrorCount);
-                    throw;
-                }
-                finally
-                {
-                    CT.Log($"正在同步，已退出进程安全区...", _file.Name);
-                }
-            });
+            );
         }
 
         /// <summary>
@@ -228,11 +227,19 @@ namespace dotnetCampus.Configurations.Concurrent
                 {
                     if (SupportsHighResolutionFileTime)
                     {
-                        CT.Log($"准备同步时（{FileDriveFormat}），发现文件时间改变 {_fileLastWriteTime.LocalDateTime:O} -> {lastWriteTime.LocalDateTime:O}", _file.Name, "Sync");
+                        CT.Log(
+                            $"准备同步时（{FileDriveFormat}），发现文件时间改变 {_fileLastWriteTime.LocalDateTime:O} -> {lastWriteTime.LocalDateTime:O}",
+                            _file.Name,
+                            "Sync"
+                        );
                     }
                     else
                     {
-                        CT.Log($"准备同步时，发现文件系统（{FileDriveFormat ?? "null"}）不支持高精度时间，强制完全同步 {lastWriteTime.LocalDateTime:O}", _file.Name, "Sync");
+                        CT.Log(
+                            $"准备同步时，发现文件系统（{FileDriveFormat ?? "null"}）不支持高精度时间，强制完全同步 {lastWriteTime.LocalDateTime:O}",
+                            _file.Name,
+                            "Sync"
+                        );
                     }
                 }
                 else
@@ -274,8 +281,7 @@ namespace dotnetCampus.Configurations.Concurrent
             _lastSyncedFileContent = text;
 
             // 将文件中的键值集合与内存中的键值集合合并。
-            var newText = MergeFileTextAndKeyValueText(context, lastWriteTime, text,
-                out var updatedTime, out var hasChanged);
+            var newText = MergeFileTextAndKeyValueText(context, lastWriteTime, text, out var updatedTime, out var hasChanged);
 
             // 将合并后的键值集合写回文件。
             if (hasChanged)
@@ -301,8 +307,7 @@ namespace dotnetCampus.Configurations.Concurrent
         private DateTimeOffset SyncWhenFileHasNotBeenUpdated(ICriticalReadWriteContext<TKey, TValue> context, DateTimeOffset lastWriteTime)
         {
             // 将文件中的键值集合与内存中的键值集合合并。
-            var newText = MergeFileTextAndKeyValueText(context, lastWriteTime, _lastSyncedFileContent,
-                out var updatedTime, out var hasChanged);
+            var newText = MergeFileTextAndKeyValueText(context, lastWriteTime, _lastSyncedFileContent, out var updatedTime, out var hasChanged);
 
             // 将合并后的键值集合写回文件。
             if (hasChanged)
@@ -328,10 +333,7 @@ namespace dotnetCampus.Configurations.Concurrent
                 // 读取成功则正常返回，读取失败返回 null（表示本次读取无效）。
                 return DoIOActionWithRetry<string?>(i =>
                 {
-                    using var fs = new FileStream(
-                        _file.FullName, FileMode.Open,
-                        FileAccess.Read, FileShare.Read,
-                        0x1000, FileOptions.SequentialScan);
+                    using var fs = new FileStream(_file.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, 0x1000, FileOptions.SequentialScan);
                     using var reader = new StreamReader(fs, Encoding.UTF8, true, 0x1000, true);
                     var text = reader.ReadToEnd();
                     CT.Log($"正在读取文件({i})：{text.Replace("\r\n", "\\n").Replace("\n", "\\n")}", _file.Name, "Sync");
@@ -361,9 +363,13 @@ namespace dotnetCampus.Configurations.Concurrent
                         _file.Directory.Create();
                     }
                     using var fileStream = new FileStream(
-                        _file.FullName, FileMode.OpenOrCreate,
-                        FileAccess.Write, FileShare.None,
-                        0x1000, FileOptions.WriteThrough);
+                        _file.FullName,
+                        FileMode.OpenOrCreate,
+                        FileAccess.Write,
+                        FileShare.None,
+                        0x1000,
+                        FileOptions.WriteThrough
+                    );
                     using var writer = new StreamWriter(fileStream, new UTF8Encoding(false, false), 0x1000, true);
                     fileStream.Position = 0;
                     writer.Write(text);
@@ -381,12 +387,14 @@ namespace dotnetCampus.Configurations.Concurrent
             ICriticalReadWriteContext<TKey, TValue> context,
             DateTimeOffset lastWriteTime,
             string text,
-            out DateTimeOffset updatedWriteTime, out bool hasChanged)
+            out DateTimeOffset updatedWriteTime,
+            out bool hasChanged
+        )
         {
-            var externalKeyValues = _deserializer(text);
-            var timedMerging = context.MergeExternalKeyValues(externalKeyValues, lastWriteTime);
+            var externalKeyValues = _serializer.Deserialize(text);
+            var timedMerging = context.MergeExternalKeyValues(externalKeyValues.ToReadOnly(), lastWriteTime);
             var mergedKeyValues = timedMerging.KeyValues.ToDictionary(x => x.Key, x => x.Value);
-            var newText = _serializer(mergedKeyValues);
+            var newText = _serializer.Serialize(mergedKeyValues);
             updatedWriteTime = timedMerging.Time;
             if (_fileEqualsComparison == FileEqualsComparison.KeyValueEquals)
             {
@@ -396,7 +404,11 @@ namespace dotnetCampus.Configurations.Concurrent
             {
                 hasChanged = !string.Equals(text, newText, StringComparison.Ordinal);
             }
-            CT.Log($"合并键值集合：从文件 {{ {string.Join(", ", externalKeyValues.Keys)} }} 到新 {{ {string.Join(", ", mergedKeyValues.Keys)} }}", _file.Name, "Sync");
+            CT.Log(
+                $"合并键值集合：从文件 {{ {string.Join(", ", externalKeyValues.Keys)} }} 到新 {{ {string.Join(", ", mergedKeyValues.Keys)} }}",
+                _file.Name,
+                "Sync"
+            );
             return newText;
         }
 
@@ -454,6 +466,7 @@ namespace dotnetCampus.Configurations.Concurrent
             }
             return default;
         }
+
 #nullable restore
 
         /// <summary>
@@ -469,6 +482,8 @@ namespace dotnetCampus.Configurations.Concurrent
             // 如果文件的时间更新，则说明文件是从未来穿越过来的。
             // 来自未来的文件总是更新，这会导致内存中的所有值都无法更新到文件中。
             // 于是，我们需要把来自未来的文件拖下水，让它适配古代的时间。
-            time > utcNow ? utcNow : time;
+            time > utcNow
+                ? utcNow
+                : time;
     }
 }

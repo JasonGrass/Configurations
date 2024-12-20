@@ -20,7 +20,7 @@ namespace dotnetCampus.Configurations.Core
         /// <summary>
         /// 获取执行配置序列化的处理器实例
         /// </summary>
-        private readonly IConfigurationSerializer _serializer;
+        private readonly IConfigurationSerializer<string, ConfigurationValue?> _serializer;
 
         /// <summary>
         /// 获取此配置所用的文件。
@@ -40,7 +40,7 @@ namespace dotnetCampus.Configurations.Core
         /// <summary>
         /// 存储运行时保存的键值对。
         /// </summary>
-        private readonly FileDictionarySynchronizer<string, string> _keyValueSynchronizer;
+        private readonly FileDictionarySynchronizer<string, ConfigurationValue?> _keyValueSynchronizer;
 
         /// <summary>
         /// 当前正在读文件的可等待任务。如果试图读配置，则应该等待此任务完成。
@@ -68,15 +68,20 @@ namespace dotnetCampus.Configurations.Core
         /// <param name="fileName">配置文件的文件路径。</param>
         [Obsolete("请改用线程安全的 ConfigurationFactory 来创建实例。")]
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public FileConfigurationRepo(string fileName, IConfigurationSerializer serializer)
+        public FileConfigurationRepo(string fileName, IConfigurationSerializer<string, ConfigurationValue?> serializer)
             : this(fileName, serializer, RepoSyncingBehavior.Sync) { }
 
         /// <summary>
         /// 初始化使用 <paramref name="fileName"/> 作为配置文件的 <see cref="FileConfigurationRepo"/> 的新实例。
         /// </summary>
         /// <param name="fileName">配置文件的文件路径。</param>
+        /// <param name="serializer"></param>
         /// <param name="syncingBehavior">指定应如何读取数据。是实时监听文件变更，还是只读一次，后续不再监听变更。后者性能更好。</param>
-        internal FileConfigurationRepo(string fileName, IConfigurationSerializer serializer, RepoSyncingBehavior syncingBehavior)
+        internal FileConfigurationRepo(
+            string fileName,
+            IConfigurationSerializer<string, ConfigurationValue?> serializer,
+            RepoSyncingBehavior syncingBehavior
+        )
         {
             if (fileName == null)
             {
@@ -88,12 +93,9 @@ namespace dotnetCampus.Configurations.Core
             var fullPath = Path.GetFullPath(fileName);
             _file = new FileInfo(fullPath);
             _saveLoop = new PartialAwaitableRetry(LoopSyncTask);
-            _keyValueSynchronizer = new FileDictionarySynchronizer<string, string>(
+            _keyValueSynchronizer = new FileDictionarySynchronizer<string, ConfigurationValue?>(
                 _file,
-#pragma warning disable CS8620 // 由于引用类型的可为 null 性差异，实参不能用于形参。
-                x => _serializer.Serialize(x),
-#pragma warning restore CS8620 // 由于引用类型的可为 null 性差异，实参不能用于形参。
-                x => _serializer.Deserialize(x),
+                _serializer,
                 // 因为 COIN 格式的序列化器默认会写“文件头”，导致即使是构造函数也会和原始文件内容不同，于是会写入文件，导致写入次数比预期多一些。
                 // 所以，比较差异时使用 KeyValueEquals 而不是 WholeTextEquals，这可以在目前对注释不敏感的时候提升一些性能。
                 FileEqualsComparison.KeyValueEquals
@@ -156,11 +158,11 @@ namespace dotnetCampus.Configurations.Core
         /// <returns>
         /// 执行项的 Key，如果不存在，则为 null / Task&lt;string&gt;.FromResult(null)"/>。
         /// </returns>
-        protected override async Task<string?> ReadValueCoreAsync(string key)
+        protected override async Task<ConfigurationValue?> ReadValueCoreAsync(string key)
         {
             await _currentReadingFileTask.ConfigureAwait(false);
             var value = _keyValueSynchronizer.Dictionary.TryGetValue(key, out var v) ? v : null;
-            CT.Log($"GET {key} = {value ?? "null"}", _file.Name);
+            CT.Log($"GET {key} = {value?.Value ?? "null"}", _file.Name);
             return value;
         }
 
@@ -169,10 +171,10 @@ namespace dotnetCampus.Configurations.Core
         /// </summary>
         /// <param name="key">指定项的 Key。</param>
         /// <param name="value">要存储的值。</param>
-        protected override async Task WriteValueCoreAsync(string key, string value)
+        protected override async Task WriteValueCoreAsync(string key, ConfigurationValue? value)
         {
             value = value ?? throw new ArgumentNullException(nameof(value));
-            value = value.Replace(Environment.NewLine, "\n");
+            value = value.Value.ReplaceNewLine();
             await _currentReadingFileTask.ConfigureAwait(false);
             CT.Log($"SET {key} = {value}", _file.Name);
             _keyValueSynchronizer.Dictionary[key] = value;

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using dotnetCampus.Configurations.Core;
 using Microsoft.Extensions.Configuration;
@@ -12,14 +12,14 @@ namespace dotnetCampus.Configurations.MicrosoftExtensionsConfiguration
             Configuration = configuration;
         }
 
-        public override string? GetValue(string key)
+        public override ConfigurationValue? GetValue(string key)
         {
-            return Configuration[key];
+            return ConfigurationValue.Create(Configuration[key]);
         }
 
-        public override void SetValue(string key, string? value)
+        public override void SetValue(string key, ConfigurationValue? value)
         {
-            Configuration[key] = value;
+            Configuration[key] = value?.Value;
         }
 
         public override void ClearValues(Predicate<string> keyFilter)

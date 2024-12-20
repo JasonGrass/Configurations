@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 
 namespace dotnetCampus.Configurations.Utils
@@ -26,6 +27,26 @@ namespace dotnetCampus.Configurations.Utils
             }
 
             return list1.Count == list2.Count && list1.All(list2.Contains);
+        }
+
+        internal static IReadOnlyDictionary<TKey, TValue> ToReadOnlyDictionary<TKey, TValue>(this Dictionary<TKey, TValue> dic)
+        {
+            if (dic == null)
+            {
+                throw new ArgumentNullException(nameof(dic), "The input dictionary cannot be null.");
+            }
+
+            return new ReadOnlyDictionary<TKey, TValue>(dic);
+        }
+
+        internal static IReadOnlyDictionary<TKey, TValue> ToReadOnly<TKey, TValue>(this IDictionary<TKey, TValue> dic)
+        {
+            if (dic == null)
+            {
+                throw new ArgumentNullException(nameof(dic), "The input dictionary cannot be null.");
+            }
+
+            return new ReadOnlyDictionary<TKey, TValue>(dic);
         }
     }
 }

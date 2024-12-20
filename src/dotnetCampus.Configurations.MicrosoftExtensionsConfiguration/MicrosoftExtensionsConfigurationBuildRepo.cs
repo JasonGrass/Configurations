@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using dotnetCampus.Configurations.Core;
@@ -14,7 +14,7 @@ namespace dotnetCampus.Configurations.MicrosoftExtensionsConfiguration
             configuration.Add(new ConfigurationSource(_concurrentDictionary));
         }
 
-        public override string? GetValue(string key)
+        public override ConfigurationValue? GetValue(string key)
         {
             if (_concurrentDictionary.TryGetValue(key, out var value))
             {
@@ -24,7 +24,7 @@ namespace dotnetCampus.Configurations.MicrosoftExtensionsConfiguration
             return null;
         }
 
-        public override void SetValue(string key, string? value)
+        public override void SetValue(string key, ConfigurationValue? value)
         {
             if (value is null)
             {
@@ -47,17 +47,17 @@ namespace dotnetCampus.Configurations.MicrosoftExtensionsConfiguration
             }
         }
 
-        private readonly ConcurrentDictionary<string, string> _concurrentDictionary =
-            new ConcurrentDictionary<string, string>();
+        private readonly ConcurrentDictionary<string, ConfigurationValue?> _concurrentDictionary =
+            new ConcurrentDictionary<string, ConfigurationValue?>();
 
         class ConfigurationSource : IConfigurationSource
         {
-            public ConfigurationSource(ConcurrentDictionary<string, string> concurrentDictionary)
+            public ConfigurationSource(ConcurrentDictionary<string, ConfigurationValue?> concurrentDictionary)
             {
                 _concurrentDictionary = concurrentDictionary;
             }
 
-            private readonly ConcurrentDictionary<string, string> _concurrentDictionary;
+            private readonly ConcurrentDictionary<string, ConfigurationValue?> _concurrentDictionary;
 
             public IConfigurationProvider Build(IConfigurationBuilder builder)
             {
@@ -67,21 +67,39 @@ namespace dotnetCampus.Configurations.MicrosoftExtensionsConfiguration
 
         class MemoryConfigurationProvider : IConfigurationProvider
         {
-            public MemoryConfigurationProvider(ConcurrentDictionary<string, string>? concurrentDictionary = null)
+            public MemoryConfigurationProvider(ConcurrentDictionary<string, ConfigurationValue?>? concurrentDictionary = null)
             {
-                _concurrentDictionary = concurrentDictionary ?? new ConcurrentDictionary<string, string>();
+                _concurrentDictionary = concurrentDictionary ?? new ConcurrentDictionary<string, ConfigurationValue?>();
             }
 
-            private readonly ConcurrentDictionary<string, string> _concurrentDictionary;
+            private readonly ConcurrentDictionary<string, ConfigurationValue?> _concurrentDictionary;
 
             public bool TryGet(string key, out string value)
             {
-                return _concurrentDictionary.TryGetValue(key, out value!);
+                var result = _concurrentDictionary.TryGetValue(key, out var v);
+
+                if (result)
+                {
+                    value = v?.Value ?? "";
+                }
+                else
+                {
+                    value = "";
+                }
+                return result;
             }
 
             public void Set(string key, string value)
             {
-                _concurrentDictionary[key] = value;
+                var v = _concurrentDictionary[key];
+                if (v == null)
+                {
+                    _concurrentDictionary[key] = ConfigurationValue.Create(value);
+                }
+                else
+                {
+                    v.Value.UpdateValue(value);
+                }
             }
 
             public IChangeToken GetReloadToken()
@@ -91,23 +109,18 @@ namespace dotnetCampus.Configurations.MicrosoftExtensionsConfiguration
 
             class ChangeToken : IChangeToken
             {
-                public IDisposable RegisterChangeCallback(Action<object> callback, object state) =>
-                    new EmptyDisposable();
+                public IDisposable RegisterChangeCallback(Action<object> callback, object state) => new EmptyDisposable();
 
                 public bool HasChanged => false;
                 public bool ActiveChangeCallbacks => false;
 
                 class EmptyDisposable : IDisposable
                 {
-                    public void Dispose()
-                    {
-                    }
+                    public void Dispose() { }
                 }
             }
 
-            public void Load()
-            {
-            }
+            public void Load() { }
 
             public IEnumerable<string> GetChildKeys(IEnumerable<string> earlierKeys, string parentPath)
             {

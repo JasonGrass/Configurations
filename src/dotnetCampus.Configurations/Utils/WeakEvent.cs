@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -140,10 +140,11 @@ namespace dotnetCampus.WeakEvents
                     x.TryGetTarget(out var relatedInstance)
                     // 如果能找到目标对象，那么从 ConditionalWeakTable 中查找对应的弱事件处理器（实际上只要上面的委托存在，这里就 100% 一定存在，所以实际上我们只是为了拿 value）。
                     && _handlers.TryGetValue(relatedInstance, out var value)
-                    // 如果找到了弱事件处理器，那么返回此处理器。
-                    ? value
-                    // 如果没有找到弱事件处理器，那么返回 null，等待被过滤。
-                    : null);
+                        // 如果找到了弱事件处理器，那么返回此处理器。
+                        ? value
+                        // 如果没有找到弱事件处理器，那么返回 null，等待被过滤。
+                        : null
+                );
 
                 // 确认订阅事件的原始对象是否仍然存活。
                 var anyHandlerAlive = weakEventHandlerList.Exists(x => x != null);
@@ -200,10 +201,7 @@ namespace dotnetCampus.WeakEvents
                 }
                 else
                 {
-                    handlers = new List<Action<TSender, TArgs>>
-                    {
-                        castedHandler,
-                    };
+                    handlers = new List<Action<TSender, TArgs>> { castedHandler };
                     MethodHandlers[handler.Method] = handlers;
                 }
             }
@@ -246,7 +244,8 @@ namespace dotnetCampus.WeakEvents
             /// 获取此弱事件处理器关联的目标方法或方法组，以及所有基于此方法组转换而得的可以直接调用的委托。
             /// 在实际上引发事件的时候，应该使用此转换后的实例，以避免使用原始事件处理函数导致的反射、IL 生成等耗性能的执行。
             /// </summary>
-            private Dictionary<MethodInfo, List<Action<TSender, TArgs>>> MethodHandlers { get; } = new Dictionary<MethodInfo, List<Action<TSender, TArgs>>>();
+            private Dictionary<MethodInfo, List<Action<TSender, TArgs>>> MethodHandlers { get; } =
+                new Dictionary<MethodInfo, List<Action<TSender, TArgs>>>();
         }
     }
 
@@ -263,7 +262,5 @@ namespace dotnetCampus.WeakEvents
     /// 1. https://blog.walterlv.com/post/implement-custom-dotnet-weak-event.html
     /// 2. https://blog.walterlv.com/post/implement-custom-dotnet-weak-event-relay.html
     /// </remarks>
-    internal class WeakEvent<TArgs> : WeakEvent<object, TArgs>
-    {
-    }
+    internal class WeakEvent<TArgs> : WeakEvent<object, TArgs> { }
 }

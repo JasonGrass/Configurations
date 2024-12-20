@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -14,23 +14,23 @@ namespace dotnetCampus.Configurations.Core
         /// </summary>
         public MemoryConfigurationRepo()
         {
-            _memoryConfiguration = new ConcurrentDictionary<string, string>();
+            _memoryConfiguration = new ConcurrentDictionary<string, ConfigurationValue?>();
         }
 
         /// <summary>
         /// 创建使用内存存储的配置文件仓库
         /// </summary>
         /// <param name="initData">传入的参数将会被作为初始化的数据</param>
-        public MemoryConfigurationRepo(IEnumerable<KeyValuePair<string, string>> initData)
+        public MemoryConfigurationRepo(IEnumerable<KeyValuePair<string, ConfigurationValue?>> initData)
         {
-            _memoryConfiguration = new ConcurrentDictionary<string, string>(initData);
+            _memoryConfiguration = new ConcurrentDictionary<string, ConfigurationValue?>(initData);
         }
 
         /// <summary>
         /// 创建使用内存存储的配置文件仓库
         /// </summary>
         /// <param name="memoryStorageDictionary">传入的参数将会用来做存储的对象</param>
-        public MemoryConfigurationRepo(ConcurrentDictionary<string, string> memoryStorageDictionary)
+        public MemoryConfigurationRepo(ConcurrentDictionary<string, ConfigurationValue?> memoryStorageDictionary)
         {
             _memoryConfiguration = memoryStorageDictionary;
         }
@@ -39,24 +39,24 @@ namespace dotnetCampus.Configurations.Core
         /// 获取内存实际采用的存储
         /// </summary>
         /// <returns></returns>
-        public ConcurrentDictionary<string, string> GetMemoryStorageDictionary() => _memoryConfiguration;
+        public ConcurrentDictionary<string, ConfigurationValue?> GetMemoryStorageDictionary() => _memoryConfiguration;
 
         protected override ICollection<string> GetKeys()
         {
             return _memoryConfiguration.Keys;
         }
 
-        protected override Task<string?> ReadValueCoreAsync(string key)
+        protected override Task<ConfigurationValue?> ReadValueCoreAsync(string key)
         {
             if (_memoryConfiguration.TryGetValue(key, out var value))
             {
-                return Task.FromResult((string?) value);
+                return Task.FromResult(value);
             }
 
-            return Task.FromResult((string?) null);
+            return Task.FromResult((ConfigurationValue?)null);
         }
 
-        protected override Task WriteValueCoreAsync(string key, string value)
+        protected override Task WriteValueCoreAsync(string key, ConfigurationValue? value)
         {
             _memoryConfiguration.AddOrUpdate(key, _ => value, (_, __) => value);
 
@@ -75,7 +75,7 @@ namespace dotnetCampus.Configurations.Core
             // 不需要持久化，因为这个类是内存配置
         }
 
-        private readonly ConcurrentDictionary<string, string> _memoryConfiguration;
+        private readonly ConcurrentDictionary<string, ConfigurationValue?> _memoryConfiguration;
 
         private Task CompleteTask { get; }
 #if NET45

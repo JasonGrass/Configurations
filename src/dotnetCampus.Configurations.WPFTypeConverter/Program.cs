@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using System.Runtime.CompilerServices;
 using System.Windows;
@@ -16,8 +16,7 @@ namespace dotnetCampus.Configurations.WPFTypeConverter
         /// <param name="configuration"></param>
         /// <param name="value"></param>
         /// <param name="key"></param>
-        public static void SetValue(this Configuration configuration, Size? value,
-            [CallerMemberName] string key = "")
+        public static void SetValue(this Configuration configuration, Size? value, [CallerMemberName] string key = "")
         {
             var sizeText = Serialize(value);
             configuration.SetValue(sizeText, key);
@@ -29,14 +28,13 @@ namespace dotnetCampus.Configurations.WPFTypeConverter
         /// <param name="configuration"></param>
         /// <param name="key"></param>
         /// <returns></returns>
-        public static Size? GetSize(this Configuration configuration,
-            [CallerMemberName] string key = "")
+        public static Size? GetSize(this Configuration configuration, [CallerMemberName] string key = "")
         {
             var sizeText = configuration.GetValue(key);
 
             try
             {
-                return Deserialize(sizeText);
+                return Deserialize(sizeText?.Value);
             }
             catch (Exception e)
             {

@@ -46,7 +46,7 @@ namespace dotnetCampus.Configurations
         /// </summary>
         /// <param name="fileName">来自于本地文件系统的文件名/路径。文件或文件所在的文件夹不需要提前存在。</param>
         /// <returns>一个默认的应用程序配置。</returns>
-        public static DefaultConfiguration FromFile(string fileName, IConfigurationSerializer serializer)
+        public static DefaultConfiguration FromFile(string fileName, IConfigurationSerializer<string, ConfigurationValue?> serializer)
         {
             if (fileName == null)
             {
@@ -83,8 +83,10 @@ namespace dotnetCampus.Configurations
         /// </summary>
         /// <param name="path">已经过验证的完整文件路径。</param>
         /// <returns><see cref="DefaultConfiguration"/> 的弱引用实例。</returns>
-        private static WeakReference<DefaultConfiguration> CreateConfigurationReference(string path, IConfigurationSerializer serializer) =>
-            new WeakReference<DefaultConfiguration>(CreateConfiguration(path, serializer));
+        private static WeakReference<DefaultConfiguration> CreateConfigurationReference(
+            string path,
+            IConfigurationSerializer<string, ConfigurationValue?> serializer
+        ) => new WeakReference<DefaultConfiguration>(CreateConfiguration(path, serializer));
 
         /// <summary>
         /// 创建 <see cref="DefaultConfiguration"/> 的新实例。
@@ -92,7 +94,7 @@ namespace dotnetCampus.Configurations
         /// </summary>
         /// <param name="path">已经过验证的完整文件路径。</param>
         /// <returns><see cref="DefaultConfiguration"/> 的新实例。</returns>
-        private static DefaultConfiguration CreateConfiguration(string path, IConfigurationSerializer serializer) =>
+        private static DefaultConfiguration CreateConfiguration(string path, IConfigurationSerializer<string, ConfigurationValue?> serializer) =>
             ConfigurationFactory.FromFile(path, serializer).CreateAppConfigurator().Of<DefaultConfiguration>();
     }
 }
