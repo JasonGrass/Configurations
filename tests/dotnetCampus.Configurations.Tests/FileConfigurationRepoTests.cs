@@ -95,7 +95,7 @@ namespace dotnetCampus.Configurations.Tests
                 // Arrange
                 var coin = TestUtil.GetTempFile(null, ".coin");
                 var repo = CreateIndependentRepo(coin);
-                var keyvalueList = new List<KeyValuePair<string, ConfigurationValue?>>()
+                var keyValueList = new List<KeyValuePair<string, ConfigurationValue?>>()
                 {
                     new KeyValuePair<string, ConfigurationValue?>(">正常的值.Foo", ConfigurationValue.Create(">123")),
                     new KeyValuePair<string, ConfigurationValue?>(">>正常的值.Foo", ConfigurationValue.Create(">123")),
@@ -105,18 +105,18 @@ namespace dotnetCampus.Configurations.Tests
                 };
 
                 // Act
-                foreach (var keyvalue in keyvalueList)
+                foreach (var keyValue in keyValueList)
                 {
-                    await repo.WriteAsync(keyvalue.Key, keyvalue.Value).ConfigureAwait(false);
+                    await repo.WriteAsync(keyValue.Key, keyValue.Value).ConfigureAwait(false);
                 }
                 await repo.SaveAsync().ConfigureAwait(false);
 
                 // Assert
                 var repo2 = CreateIndependentRepo(coin);
-                foreach (var keyvalue in keyvalueList)
+                foreach (var keyValue in keyValueList)
                 {
-                    var test = await repo2.TryReadAsync(keyvalue.Key).ConfigureAwait(false);
-                    Assert.AreEqual(keyvalue.Value.Value.Value, test.Value.Value);
+                    var test = await repo2.TryReadAsync(keyValue.Key).ConfigureAwait(false);
+                    Assert.AreEqual(keyValue.Value!.Value.Value, test!.Value.Value);
                 }
             });
 

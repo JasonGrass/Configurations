@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace dotnetCampus.Configurations.Concurrent
@@ -7,6 +7,7 @@ namespace dotnetCampus.Configurations.Concurrent
     /// 包含时间戳的键值集合。
     /// </summary>
     public readonly struct TimedKeyValues<TKey, TValue> : IEquatable<TimedKeyValues<TKey, TValue>>
+        where TKey : notnull
     {
         /// <summary>
         /// 创建 <see cref="TimedKeyValues{TKey, TValue}"/> 的新实例。
@@ -36,8 +37,7 @@ namespace dotnetCampus.Configurations.Concurrent
 
         public bool Equals(TimedKeyValues<TKey, TValue> other)
         {
-            return EqualityComparer<IReadOnlyDictionary<TKey, TValue>>.Default.Equals(KeyValues, other.KeyValues) &&
-                   Time.Equals(other.Time);
+            return EqualityComparer<IReadOnlyDictionary<TKey, TValue>>.Default.Equals(KeyValues, other.KeyValues) && Time.Equals(other.Time);
         }
 
         public override int GetHashCode()
@@ -49,6 +49,7 @@ namespace dotnetCampus.Configurations.Concurrent
         }
 
         public static bool operator ==(TimedKeyValues<TKey, TValue> left, TimedKeyValues<TKey, TValue> right) => left.Equals(right);
+
         public static bool operator !=(TimedKeyValues<TKey, TValue> left, TimedKeyValues<TKey, TValue> right) => !(left == right);
     }
 }

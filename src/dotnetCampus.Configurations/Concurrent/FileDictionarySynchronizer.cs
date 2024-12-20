@@ -16,6 +16,7 @@ namespace dotnetCampus.Configurations.Concurrent
     /// 将文件与 <see cref="ProcessConcurrentDictionary{TKey, TValue}"/> 进行跨进程安全同步的辅助工具。
     /// </summary>
     internal class FileDictionarySynchronizer<TKey, TValue>
+        where TKey : notnull
     {
         /// <summary>
         /// 获取当前已知具有高精度文件时间的文件系统名称（不区分大小写）。
@@ -393,12 +394,14 @@ namespace dotnetCampus.Configurations.Concurrent
         {
             var externalKeyValues = _serializer.Deserialize(text);
             var timedMerging = context.MergeExternalKeyValues(externalKeyValues.ToReadOnly(), lastWriteTime);
-            var mergedKeyValues = timedMerging.KeyValues.ToDictionary(x => x.Key, x => x.Value);
-            var newText = _serializer.Serialize(mergedKeyValues);
+            var mergedKeyValues = timedMerging.KeyValues;
+            var newText = _serializer.Serialize(mergedKeyValues!);
             updatedWriteTime = timedMerging.Time;
             if (_fileEqualsComparison == FileEqualsComparison.KeyValueEquals)
             {
-                hasChanged = !((ICollection<KeyValuePair<TKey, TValue>>)externalKeyValues).SequenceEqualsIgnoringOrder(mergedKeyValues);
+                hasChanged = !((ICollection<KeyValuePair<TKey, TValue>>)externalKeyValues).SequenceEqualsIgnoringOrder(
+                    mergedKeyValues.ToDictionary(kv => kv.Key, kv => kv.Value)
+                );
             }
             else
             {

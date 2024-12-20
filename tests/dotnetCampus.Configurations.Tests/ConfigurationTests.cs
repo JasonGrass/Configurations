@@ -244,9 +244,9 @@ namespace dotnetCampus.Configurations.Tests
         /// <param name="clearValues">模拟 <see cref="IConfigurationRepo.ClearValues"/> 方法。</param>
         /// <returns><see cref="IAppConfigurator"/> 的模拟实例。</returns>
         private IAppConfigurator CreateConfiguration(
-            Func<string, ConfigurationValue?> getValue = null,
-            Action<string, ConfigurationValue?> setValue = null,
-            Action<Predicate<string>> clearValues = null
+            Func<string, ConfigurationValue?>? getValue = null,
+            Action<string, ConfigurationValue?>? setValue = null,
+            Action<Predicate<string>>? clearValues = null
         )
         {
             var managerMock = new Mock<IConfigurationRepo>();
@@ -261,7 +261,7 @@ namespace dotnetCampus.Configurations.Tests
             return managerMock.Object.CreateAppConfigurator();
         }
 
-        private static void RemoveKeys(Dictionary<string, ConfigurationValue?> dictionary, Predicate<string> keyFilter)
+        private static void RemoveKeys(Dictionary<string, ConfigurationValue?> dictionary, Predicate<string>? keyFilter)
         {
             if (keyFilter == null)
             {

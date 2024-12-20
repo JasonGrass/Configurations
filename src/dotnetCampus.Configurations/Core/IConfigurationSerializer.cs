@@ -6,6 +6,7 @@ namespace dotnetCampus.Configurations.Core;
 /// 配置文件的序列化处理
 /// </summary>
 public interface IConfigurationSerializer<TKey, TValue>
+    where TKey : notnull
 {
     /// <summary>
     /// 将键值对字典序列化为文本字符串。

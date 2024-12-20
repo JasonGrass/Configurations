@@ -30,6 +30,7 @@ namespace dotnetCampus.Configurations.Utils
         }
 
         internal static IReadOnlyDictionary<TKey, TValue> ToReadOnlyDictionary<TKey, TValue>(this Dictionary<TKey, TValue> dic)
+            where TKey : notnull
         {
             if (dic == null)
             {
@@ -40,6 +41,7 @@ namespace dotnetCampus.Configurations.Utils
         }
 
         internal static IReadOnlyDictionary<TKey, TValue> ToReadOnly<TKey, TValue>(this IDictionary<TKey, TValue> dic)
+            where TKey : notnull
         {
             if (dic == null)
             {
