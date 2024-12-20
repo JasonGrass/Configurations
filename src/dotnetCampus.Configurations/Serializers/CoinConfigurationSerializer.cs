@@ -15,7 +15,7 @@ namespace dotnetCampus.Configurations.Serializers
         private const string FixCommandHeader = "> 配置文件";
         private const string FixCommandFooter = "> 配置文件结束";
         private const string FixCommandVersion = "> 版本 1.0";
-        private static readonly string SplitMarkString = ">";
+        private const string SplitMarkString = ">";
         private const string EscapeMarkString = "?";
 
         /// <summary>
@@ -87,9 +87,10 @@ namespace dotnetCampus.Configurations.Serializers
             {
                 // str.AppendLine 在一些地区使用的是 \r\n 所以不符合反序列化
 
-                if (!string.IsNullOrWhiteSpace(temp.Value?.Comment))
+                var valueComment = temp.Value?.Comment;
+                if (valueComment != null && !string.IsNullOrWhiteSpace(valueComment))
                 {
-                    var comments = temp.Value.Value.Comment.Split('\n').Where(c => !string.IsNullOrWhiteSpace(c));
+                    var comments = valueComment.Split('\n').Where(c => !string.IsNullOrWhiteSpace(c));
                     foreach (var comment in comments)
                     {
                         str.Append("> " + comment.Trim());
