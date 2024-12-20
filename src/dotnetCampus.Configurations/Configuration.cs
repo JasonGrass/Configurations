@@ -260,9 +260,7 @@ namespace dotnetCampus.Configurations
             // value.ToString() 可以拿到一定非 null 的字符串；
             // value?.ToString() 则可以在字符串为 null/"" 时拿到 null。
 
-            // 可能会丢失注释和分组数据？
-            var v = new ConfigurationValue(value?.ToString(), null, null);
-
+            var v = ConfigurationValue.Create(value?.ToString());
             Repo.SetValue($"{_section}{key}", v);
         }
 

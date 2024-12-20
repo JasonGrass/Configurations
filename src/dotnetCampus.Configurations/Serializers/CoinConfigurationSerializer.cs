@@ -12,6 +12,12 @@ namespace dotnetCampus.Configurations.Serializers
     /// </summary>
     public class CoinConfigurationSerializer : IConfigurationSerializer<string, ConfigurationValue?>
     {
+        private const string FixCommandHeader = "> 配置文件";
+        private const string FixCommandFooter = "> 配置文件结束";
+        private const string FixCommandVersion = "> 版本 1.0";
+        private static readonly string SplitMarkString = ">";
+        private const string EscapeMarkString = "?";
+
         /// <summary>
         /// 存储的转义
         /// </summary>
@@ -27,17 +33,17 @@ namespace dotnetCampus.Configurations.Serializers
             // 如果开头是 `>` 就需要转换为 `?>`
             // 开头是 `?` 转换为 `??`
 
-            var splitString = _splitString;
-            var escapeString = _escapeString;
+            var splitString = SplitMarkString;
+            var escapeString = EscapeMarkString;
 
             if (str.StartsWith(splitString, StringComparison.Ordinal))
             {
-                return _escapeString + str;
+                return EscapeMarkString + str;
             }
 
             if (str.StartsWith(escapeString, StringComparison.Ordinal))
             {
-                return _escapeString + str;
+                return EscapeMarkString + str;
             }
 
             return str;
@@ -48,7 +54,7 @@ namespace dotnetCampus.Configurations.Serializers
         /// </summary>
         /// <param name="keyValue">要序列化的键值对字典。</param>
         /// <returns>序列化后的文本字符串。</returns>
-        public string Serialize(IReadOnlyDictionary<string, string?> keyValue)
+        public string Serialize(IReadOnlyDictionary<string, ConfigurationValue?> keyValue)
         {
             if (ReferenceEquals(keyValue, null))
                 throw new ArgumentNullException(nameof(keyValue));
@@ -62,7 +68,7 @@ namespace dotnetCampus.Configurations.Serializers
         /// </summary>
         /// <param name="keyValue">要序列化的键值对字典。</param>
         /// <returns>序列化后的文本字符串。</returns>
-        public static string Serialize(Dictionary<string, string?> keyValue)
+        public static string Serialize(Dictionary<string, ConfigurationValue?> keyValue)
         {
             if (ReferenceEquals(keyValue, null))
                 throw new ArgumentNullException(nameof(keyValue));
@@ -71,38 +77,39 @@ namespace dotnetCampus.Configurations.Serializers
             return Serialize(keyValuePairList);
         }
 
-        private static string Serialize(IOrderedEnumerable<KeyValuePair<string, string?>> keyValuePairList)
+        private static string Serialize(IOrderedEnumerable<KeyValuePair<string, ConfigurationValue?>> keyValuePairList)
         {
             var str = new StringBuilder();
-            str.Append("> 配置文件\n");
-            str.Append("> 版本 1.0\n");
+            str.Append($"{FixCommandHeader}\n");
+            str.Append($"{FixCommandVersion}\n");
 
             foreach (var temp in keyValuePairList)
             {
                 // str.AppendLine 在一些地区使用的是 \r\n 所以不符合反序列化
 
+                if (!string.IsNullOrWhiteSpace(temp.Value?.Comment))
+                {
+                    var comments = temp.Value.Value.Comment.Split('\n').Where(c => !string.IsNullOrWhiteSpace(c));
+                    foreach (var comment in comments)
+                    {
+                        str.Append("> " + comment.Trim());
+                        str.Append("\n");
+                    }
+                }
                 str.Append(EscapeString(temp.Key ?? ""));
                 str.Append("\n");
-                str.Append(EscapeString(temp.Value ?? ""));
+                str.Append(EscapeString(temp.Value?.Value ?? ""));
                 str.Append("\n>\n");
             }
 
-            str.Append("> 配置文件结束");
+            str.Append($"{FixCommandFooter}");
             return str.ToString();
-        }
-
-        private static string _splitString = ">";
-        private static string _escapeString = "?";
-
-        string IConfigurationSerializer<string, ConfigurationValue?>.Serialize(IReadOnlyDictionary<string, ConfigurationValue?> keyValue)
-        {
-            return Serialize(keyValue.ToDictionary(v => v.Key, v => v.Value?.Value));
         }
 
         IDictionary<string, ConfigurationValue?> IConfigurationSerializer<string, ConfigurationValue?>.Deserialize(string str)
         {
             var dictionary = this.Deserialize(str);
-            return dictionary.ToDictionary(v => v.Key, v => (ConfigurationValue?)new ConfigurationValue(v.Value, null, null));
+            return dictionary.ToDictionary(v => v.Key, v => (ConfigurationValue?)v.Value);
         }
 
         /// <summary>
@@ -110,33 +117,56 @@ namespace dotnetCampus.Configurations.Serializers
         /// </summary>
         /// <param name="str"></param>
         /// <returns></returns>
-        public Dictionary<string, string> Deserialize(string str)
+        public Dictionary<string, ConfigurationValue> Deserialize(string str)
         {
             if (ReferenceEquals(str, null))
                 throw new ArgumentNullException(nameof(str));
-            var keyValuePairList = str.Split('\n');
-            var keyValue = new Dictionary<string, string>(StringComparer.Ordinal);
-            string? key = null;
-            var splitString = _splitString;
+            var lines = str.Split('\n');
+            var keyValue = new Dictionary<string, ConfigurationValue>(StringComparer.Ordinal);
+            var splitString = SplitMarkString;
 
-            foreach (var temp in keyValuePairList.Select(temp => temp.Trim()))
+            string? key = null;
+            string? comment = null;
+
+            foreach (var line in lines.Select(l => l.Trim()))
             {
-                if (temp.StartsWith(splitString, StringComparison.Ordinal))
+                if (string.IsNullOrEmpty(line))
                 {
-                    // 分割，可以作为注释，这一行忽略
-                    // 下一行必须是key
-                    key = null;
+                    continue;
+                }
+                if (line == FixCommandHeader || line == FixCommandVersion || line == FixCommandFooter)
+                {
                     continue;
                 }
 
-                var unescapedString = UnescapeString(temp);
+                if (line.StartsWith(splitString, StringComparison.Ordinal))
+                {
+                    // 注释行
+                    key = null;
+                    var commentLine = line.Substring(splitString.Length);
+                    if (string.IsNullOrWhiteSpace(commentLine))
+                    {
+                        continue;
+                    }
+                    if (comment == null)
+                    {
+                        comment = commentLine.Trim();
+                    }
+                    else
+                    {
+                        comment += "\n" + commentLine.Trim();
+                    }
+                    continue;
+                }
+
+                var unescapedString = UnescapeString(line);
 
                 if (key == null)
                 {
                     key = unescapedString;
 
                     // 文件存在多个地方都记录相同的值
-                    // 如果有多个地方记录相同的值，使用最后的值替换前面文件
+                    // 如果有多个地方记录相同的值，使用最后的值替换前面
                     if (keyValue.ContainsKey(key))
                     {
                         keyValue.Remove(key);
@@ -150,11 +180,12 @@ namespace dotnetCampus.Configurations.Serializers
                         // v1
                         // v2
                         // 返回 {"key","v1\nv2"}
-                        keyValue[key] = keyValue[key] + "\n" + unescapedString;
+                        keyValue[key] = keyValue[key].AppendLine(unescapedString);
                     }
                     else
                     {
-                        keyValue.Add(key, unescapedString);
+                        keyValue.Add(key, ConfigurationValue.CreateNotNull(unescapedString, "", comment));
+                        comment = null;
                     }
                 }
             }
@@ -169,7 +200,7 @@ namespace dotnetCampus.Configurations.Serializers
         /// <returns></returns>
         private static string UnescapeString(string str)
         {
-            var escapeString = _escapeString;
+            var escapeString = EscapeMarkString;
 
             if (str.StartsWith(escapeString, StringComparison.Ordinal))
             {

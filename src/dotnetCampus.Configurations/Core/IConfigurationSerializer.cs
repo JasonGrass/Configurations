@@ -31,7 +31,7 @@ public record struct ConfigurationValue()
     public string? Group { get; private set; }
     public string? Comment { get; private set; }
 
-    public ConfigurationValue(string? value, string? group, string? comment)
+    private ConfigurationValue(string? value, string? group, string? comment)
         : this()
     {
         Value = value;
@@ -76,14 +76,51 @@ public record struct ConfigurationValue()
         return one.Equals(other, StringComparison.InvariantCulture);
     }
 
-    public static ConfigurationValue Create(string newValue)
+    public static ConfigurationValue? Create(string? newValue)
     {
+        if (newValue == null)
+        {
+            return null;
+        }
         return new ConfigurationValue(newValue, null, null);
     }
 
-    public void UpdateValue(string? newValue)
+    public static ConfigurationValue CreateNotNull(string newValue, string? group, string? comment)
+    {
+        return new ConfigurationValue(newValue, group, comment);
+    }
+
+    public ConfigurationValue UpdateValue(string? newValue)
     {
         this.Value = newValue;
+        return this;
+    }
+
+    public ConfigurationValue AppendLine(string newValue)
+    {
+        this.Value += this.Value + "\n" + newValue;
+        return this;
+    }
+
+    public ConfigurationValue Merge(ConfigurationValue? newer)
+    {
+        if (newer == null)
+        {
+            return this;
+        }
+
+        this.Value = newer.Value.Value;
+        if (!string.IsNullOrEmpty(newer.Value.Comment))
+        {
+            this.Comment = newer.Value.Comment;
+        }
+
+        if (!string.IsNullOrEmpty(newer.Value.Group))
+        {
+            this.Group = newer.Value.Group;
+        }
+
+        return this;
     }
 
     public ConfigurationValue ReplaceNewLine()

@@ -120,7 +120,7 @@ namespace dotnetCampus.Configurations.Core
             }
             else
             {
-                await WriteValueCoreAsync(key, value).ConfigureAwait(false);
+                await WriteValueCoreAsync(key, originalValue?.Merge(value) ?? value).ConfigureAwait(false);
             }
 
             // 通知子类处理值的改变，并收集改变后果。
